@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "capabilities": [
+    {
+      "id": "conversation",
+      "name": "Conversação restrita",
+      "status": "implemented",
+      "physical": false,
+      "entity_id": null
+    },
+    {
+      "id": "control_gateway",
+      "name": "Gateway de controle seguro",
+      "status": "implemented",
+      "physical": false,
+      "entity_id": null
+    },
+    {
+      "id": "home_assistant",
+      "name": "Integração Home Assistant",
+      "status": "planned",
+      "physical": false,
+      "entity_id": null
+    },
+    {
+      "id": "room_lighting",
+      "name": "Iluminação da sala",
+      "status": "planned",
+      "physical": true,
+      "entity_id": null
+    },
+    {
+      "id": "addressable_leds",
+      "name": "Fitas LED WS2815",
+      "status": "planned",
+      "physical": true,
+      "entity_id": null
+    },
+    {
+      "id": "air_conditioning",
+      "name": "Controle de ar-condicionado",
+      "status": "planned",
+      "physical": true,
+      "entity_id": null
+    },
+    {
+      "id": "televisions",
+      "name": "Controle das televisões",
+      "status": "planned",
+      "physical": true,
+      "entity_id": null
+    },
+    {
+      "id": "presence_detection",
+      "name": "Detecção de presença",
+      "status": "planned",
+      "physical": true,
+      "entity_id": null
+    },
+    {
+      "id": "jarvis_interface",
+      "name": "Interface visual — Monitor 1",
+      "status": "planned",
+      "physical": false,
+      "entity_id": null
+    },
+    {
+      "id": "status_dashboard",
+      "name": "Dashboard operacional — Monitor 2",
+      "status": "planned",
+      "physical": false,
+      "entity_id": null
+    }
+  ]
+}
