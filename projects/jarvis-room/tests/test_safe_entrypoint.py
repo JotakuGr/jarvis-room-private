@@ -3,6 +3,7 @@
 import unittest
 
 from jarvis_room.safe_entrypoint import process_message
+from jarvis_room.verified_replies import verified_reply_for
 
 
 class FakeChat:
@@ -93,13 +94,14 @@ class TestSafeEntrypoint(unittest.TestCase):
                 self.assertEqual(chat.calls, [message])
                 self.assertEqual(reply.channel, "conversation")
                 self.assertFalse(reply.action_verified)
-                self.assertEqual(reply.text, "Sou J.A.R.V.I.S.")
+                self.assertEqual(reply.text, verified_reply_for(message))
 
     def test_conversacao_indisponivel(self) -> None:
         for chat in (
             None,
             FakeChat(RuntimeError("Ollama indisponível")),
             FakeChat(""),
+            FakeChat("  \t\n "),
             FakeChat(None),
         ):
             with self.subTest(chat=chat):
@@ -122,5 +124,6 @@ class TestSafeEntrypoint(unittest.TestCase):
         reply = process_message("Quem é você?", chat)
         self.assertEqual(chat.calls, ["Quem é você?"])
         self.assertEqual(reply.channel, "conversation")
-        self.assertEqual(reply.text, chat.response)
+        self.assertEqual(reply.text, verified_reply_for("Quem é você?"))
+        self.assertNotIn("Todas as luzes", reply.text)
         self.assertFalse(reply.action_verified)

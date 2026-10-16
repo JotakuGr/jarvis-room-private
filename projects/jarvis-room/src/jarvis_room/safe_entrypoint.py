@@ -5,6 +5,7 @@ from typing import Callable, Literal
 
 from .command_router import normalize, route_message
 from .room_assistant import handle_message
+from .verified_replies import verified_reply_for
 
 ALLOWED_CHAT = frozenset({
     "quem e voce",
@@ -72,4 +73,8 @@ def process_message(
             channel="blocked",
         )
 
-    return SafeReply(text=response, channel="conversation")
+    return SafeReply(
+        text=verified_reply_for(message),
+        channel="conversation",
+        action_verified=False,
+    )
