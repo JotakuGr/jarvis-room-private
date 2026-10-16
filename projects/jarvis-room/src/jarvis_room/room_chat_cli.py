@@ -2,7 +2,7 @@
 
 import argparse
 
-from .safe_entrypoint import process_message
+from .response_dispatcher import dispatch_message
 
 
 def main() -> None:
@@ -23,7 +23,7 @@ def main() -> None:
 
         chat = OpenJarvisConversation()
 
-    reply = process_message(" ".join(args.message), chat=chat)
+    reply = dispatch_message(" ".join(args.message), chat=chat)
     print(
         f"[canal={reply.channel}; "
         f"acao_verificada={str(reply.action_verified).lower()}]"
