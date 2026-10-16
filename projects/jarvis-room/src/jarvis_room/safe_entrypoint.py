@@ -3,7 +3,12 @@
 from dataclasses import dataclass
 from typing import Callable, Literal
 
+from .capability_service import (
+    control_candidate_enabled,
+    render_capability_report,
+)
 from .command_router import normalize, route_message
+from .control_guard import render_action_result
 from .room_assistant import handle_message
 from .verified_replies import verified_reply_for
 
@@ -12,6 +17,8 @@ ALLOWED_CHAT = frozenset({
     "explique a arquitetura da sala",
     "quais sao os dois monitores da sala",
 })
+
+CAPABILITY_STATUS_QUERY = "qual e o estado dos recursos da sala"
 
 
 @dataclass(frozen=True)
@@ -29,10 +36,37 @@ def process_message(
 ) -> SafeReply:
     decision = route_message(message)
     # Comandos operacionais nunca chegam ao LLM.
-    if decision.kind != "conversation":
+    if decision.kind == "control":
+        if not control_candidate_enabled(decision.entity_id):
+            return SafeReply(
+                text=render_action_result(decision.entity_id, decision.action),
+                channel="control",
+                action_verified=False,
+            )
         return SafeReply(
             text=handle_message(message),
-            channel="control" if decision.kind == "control" else "blocked",
+            channel="control",
+            action_verified=False,
+        )
+    if decision.kind == "unsupported":
+        return SafeReply(
+            text=handle_message(message),
+            channel="blocked",
+            action_verified=False,
+        )
+
+    if normalize(message) == CAPABILITY_STATUS_QUERY:
+        try:
+            report = render_capability_report()
+        except (OSError, ValueError, TypeError):
+            return SafeReply(
+                text="Inventário indisponível. Nenhuma ação foi executada.",
+                channel="blocked",
+            )
+        return SafeReply(
+            text=report,
+            channel="conversation",
+            action_verified=False,
         )
 
     if normalize(message) not in ALLOWED_CHAT:
