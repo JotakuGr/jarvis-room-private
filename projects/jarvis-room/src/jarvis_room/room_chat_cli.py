@@ -1,4 +1,4 @@
-"""CLI de controle determinístico e conversação opcional pelo OpenJarvis."""
+"""CLI segura com modo experimental opcional."""
 
 import argparse
 
@@ -12,10 +12,19 @@ def main() -> None:
     parser.add_argument(
         "--llm",
         action="store_true",
-        help="Habilitar conversação pelo OpenJarvis",
+        help="Disponibilizar o OpenJarvis",
+    )
+    parser.add_argument(
+        "--experimental-chat",
+        action="store_true",
+        help="Perguntas abertas em ambiente de desenvolvimento",
     )
     parser.add_argument("message", nargs="+")
     args = parser.parse_args()
+    message = " ".join(args.message)
+
+    if args.experimental_chat and not args.llm:
+        parser.error("--experimental-chat exige --llm")
 
     chat = None
     if args.llm:
@@ -23,7 +32,12 @@ def main() -> None:
 
         chat = OpenJarvisConversation()
 
-    reply = dispatch_message(" ".join(args.message), chat=chat)
+    if args.experimental_chat:
+        from .experimental_chat import answer_informational_question
+
+        reply = answer_informational_question(message, chat=chat)
+    else:
+        reply = dispatch_message(message, chat=chat)
     print(
         f"[canal={reply.channel}; "
         f"acao_verificada={str(reply.action_verified).lower()}]"
