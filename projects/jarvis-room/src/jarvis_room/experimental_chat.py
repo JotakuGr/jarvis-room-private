@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Callable, Literal
 
 from .command_router import normalize, route_message
+from .inference_policy import LocalInferenceUnavailable
 
 INFORMATION_PREFIXES = (
     "explique ",
@@ -56,6 +57,12 @@ def answer_informational_question(
 
     try:
         response = chat(message)
+    except LocalInferenceUnavailable as exc:
+        return ExperimentalReply(
+            text=f"Inferência local bloqueada: {exc}",
+            channel="blocked",
+            action_verified=False,
+        )
     except Exception:
         return ExperimentalReply(
             text=(
