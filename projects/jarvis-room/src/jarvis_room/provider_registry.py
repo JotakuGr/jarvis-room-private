@@ -41,6 +41,10 @@ class ProviderRegistry:
         info = provider.info
         if not isinstance(info, ProviderInfo) or info.identifier != provider_id:
             raise ProviderUnavailable("Metadados do provedor inválidos.")
+        # Provedores remotos permanecem indisponíveis nesta fase.
+        # enabled=True não autoriza comunicação remota.
+        if info.location == "remote":
+            raise ProviderUnavailable("Provedores remotos indisponíveis nesta fase.")
         if not info.enabled:
             raise ProviderUnavailable("Provedor desabilitado.")
 

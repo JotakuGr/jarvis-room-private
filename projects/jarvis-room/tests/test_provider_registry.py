@@ -108,9 +108,9 @@ class TestProviderRegistry(unittest.TestCase):
         self.assertFalse(response.action_verified)
         self.assertEqual(local.calls, [request.prompt])
         self.assertEqual(remote.calls, [])
-        response = registry.respond("remote-test", request)
-        self.assertEqual(response.provider_id, "remote-test")
-        self.assertEqual(remote.calls, [request.prompt])
+        with self.assertRaisesRegex(ProviderUnavailable, "remotos indisponíveis"):
+            registry.respond("remote-test", request)
+        self.assertEqual(remote.calls, [])
         for invalid in (None, "Explique MQTT", {}):
             with self.subTest(request=invalid), self.assertRaises(ValueError):
                 registry.respond("local-test", invalid)
