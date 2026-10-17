@@ -4,6 +4,12 @@
     {
       "id": "mqtt_basics",
       "prompt": "Explique o que é MQTT em duas frases.",
+      "expected_sentences": 2,
+      "review_phrases": [
+        "tecnologia de comunicacao sem fio",
+        "sem necessidade de servidor intermediario",
+        "nao e um protocolo"
+      ],
       "required": [
         ["protocolo"],
         ["publish subscribe", "publicacao assinatura"],

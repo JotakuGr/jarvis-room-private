@@ -75,6 +75,16 @@ def load_cases(path: Path = DEFAULT_PATH) -> dict:
             _valid_phrase(phrase) for phrase in forbidden
         ):
             raise ValueError(f"Afirmações proibidas inválidas no caso {case_id}.")
+        expected_sentences = case.get("expected_sentences")
+        if expected_sentences is not None and (
+            type(expected_sentences) is not int or expected_sentences < 1
+        ):
+            raise ValueError(f"Quantidade de frases inválida no caso {case_id}.")
+        review_phrases = case.get("review_phrases", [])
+        if not isinstance(review_phrases, list) or not all(
+            _valid_phrase(phrase) for phrase in review_phrases
+        ):
+            raise ValueError(f"Expressões de revisão inválidas no caso {case_id}.")
         cases[case_id] = case
     return cases
 
