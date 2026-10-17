@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "observations": [
+    {
+      "id": "mqtt_17c_cold",
+      "case_id": "mqtt_basics",
+      "model": "jarvis-dev-lite:latest",
+      "source": "user_report",
+      "load_state": "cold",
+      "client_seconds": 26.767375,
+      "human_review": "incorrect",
+      "answer": "A MQTT é uma tecnologia de comunicação sem fio que permite a troca de mensagens entre dispositivos via rede, funcionando como um canal seguro e eficiente para sistemas de IoT."
+    },
+    {
+      "id": "mqtt_17d_preloaded",
+      "case_id": "mqtt_basics",
+      "model": "jarvis-dev-lite:latest",
+      "source": "user_report",
+      "load_state": "preloaded",
+      "client_seconds": 6.004,
+      "human_review": "incorrect",
+      "answer": "A MQTT é uma tecnologia de comunicação de rede leve que permite a troca de mensagens sem necessidade de servidor intermediário, ideal para sistemas embarcados e IoT."
+    }
+  ]
+}

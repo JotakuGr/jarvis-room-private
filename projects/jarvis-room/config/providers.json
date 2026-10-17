@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "default_provider": "openjarvis-local",
+  "remote_enabled": false,
+  "providers": {
+    "openjarvis-local": {
+      "location": "local",
+      "enabled": true
+    }
+  }
+}
