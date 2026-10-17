@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "mqtt_basics",
+      "prompt": "Explique o que é MQTT em duas frases.",
+      "required": [
+        ["protocolo"],
+        ["publish subscribe", "publicacao assinatura"],
+        ["broker", "servidor intermediario"]
+      ],
+      "forbidden": [
+        "tecnologia sem fio",
+        "sem necessidade de servidor intermediario",
+        "sem broker",
+        "dispensa broker",
+        "seguranca garantida"
+      ]
+    },
+    {
+      "id": "room_lighting_status",
+      "prompt": "O JARVIS consegue controlar as luzes da sala agora?",
+      "required": [
+        ["nao", "ainda nao"],
+        ["integracao", "controle fisico"]
+      ],
+      "forbidden": [
+        "todas as luzes estao ligadas",
+        "ja controlo as luzes",
+        "integracao concluida"
+      ]
+    },
+    {
+      "id": "wled_basics",
+      "prompt": "O que é WLED?",
+      "required": [
+        ["firmware", "software"],
+        ["led", "leds"],
+        ["esp32", "esp8266"]
+      ],
+      "forbidden": [
+        "nao precisa de controlador",
+        "obrigatoriamente 5 v"
+      ]
+    },
+    {
+      "id": "home_assistant_room",
+      "prompt": "Qual é o papel do Home Assistant no projeto?",
+      "required": [
+        ["plataforma", "sistema"],
+        ["automacao"],
+        ["ainda nao", "planejado", "planejada", "futura"]
+      ],
+      "forbidden": [
+        "ja esta integrado",
+        "totalmente integrado"
+      ]
+    }
+  ]
+}
