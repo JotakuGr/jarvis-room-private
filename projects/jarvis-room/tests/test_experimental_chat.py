@@ -142,7 +142,7 @@ class TestExperimentalChat(unittest.TestCase):
                 with patch(
                     "sys.argv", ["room_chat_cli", *flags, message]
                 ), patch(
-                    "jarvis_room.conversation_adapter.OpenJarvisConversation",
+                    "jarvis_room.provider_chat_adapter.RegistryChatAdapter",
                     return_value=chat,
                 ) as adapter, redirect_stdout(output):
                     main()

@@ -1,0 +1,32 @@
+"""Ponte entre a CLI experimental e o registro de provedores.
+
+Não registra provedores remotos.
+Não executa ferramentas físicas.
+"""
+
+from .inference_policy import LocalInferenceUnavailable
+from .openjarvis_provider import OpenJarvisLocalProvider
+from .provider_contract import ProviderRequest, ProviderResourceUnavailable
+from .provider_registry import ProviderRegistry
+
+LOCAL_PROVIDER_ID = "openjarvis-local"
+
+
+class RegistryChatAdapter:
+    """Conversação pelo provedor local explicitamente selecionado."""
+
+    def __init__(self) -> None:
+        # Habilitação somente nesta instância experimental.
+        # Construir o registro não inicia nenhuma inferência.
+        self._registry = ProviderRegistry([
+            OpenJarvisLocalProvider(enabled=True),
+        ])
+
+    def __call__(self, message: str) -> str:
+        request = ProviderRequest(message)
+        try:
+            response = self._registry.respond(LOCAL_PROVIDER_ID, request)
+        except ProviderResourceUnavailable as exc:
+            # Preserva o tratamento já existente na CLI para memória.
+            raise LocalInferenceUnavailable(str(exc)) from exc
+        return response.text

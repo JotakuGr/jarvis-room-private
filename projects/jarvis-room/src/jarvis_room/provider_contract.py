@@ -12,6 +12,10 @@ class ProviderUnavailable(RuntimeError):
     """Provedor indisponível ou bloqueado pela política."""
 
 
+class ProviderResourceUnavailable(ProviderUnavailable):
+    """Inferência recusada pela política de recursos locais."""
+
+
 def _valid_identifier(value: object) -> bool:
     return (
         isinstance(value, str)

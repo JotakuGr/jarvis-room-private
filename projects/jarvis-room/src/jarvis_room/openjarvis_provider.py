@@ -1,6 +1,5 @@
 """Ponte local OpenJarvis para o contrato textual.
 
-Não integra a CLI nesta etapa.
 Não fornece ferramentas físicas.
 """
 
@@ -10,7 +9,7 @@ from .provider_contract import (
     ProviderInfo,
     ProviderRequest,
     ProviderResponse,
-    ProviderUnavailable,
+    ProviderResourceUnavailable,
 )
 
 
@@ -32,5 +31,5 @@ class OpenJarvisLocalProvider:
             # O SDK só será importado após a checagem de recursos.
             answer = OpenJarvisConversation()(request.prompt)
         except LocalInferenceUnavailable as exc:
-            raise ProviderUnavailable(f"Inferência local bloqueada: {exc}") from exc
+            raise ProviderResourceUnavailable(str(exc)) from exc
         return ProviderResponse(text=answer, provider_id=self.info.identifier)

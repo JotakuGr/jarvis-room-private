@@ -12,7 +12,7 @@ def main() -> None:
     parser.add_argument(
         "--llm",
         action="store_true",
-        help="Disponibilizar o OpenJarvis",
+        help="Disponibilizar o provedor local",
     )
     parser.add_argument(
         "--experimental-chat",
@@ -28,9 +28,9 @@ def main() -> None:
 
     chat = None
     if args.llm:
-        from .conversation_adapter import OpenJarvisConversation
+        from .provider_chat_adapter import RegistryChatAdapter
 
-        chat = OpenJarvisConversation()
+        chat = RegistryChatAdapter()
 
     if args.experimental_chat:
         from .experimental_chat import answer_informational_question

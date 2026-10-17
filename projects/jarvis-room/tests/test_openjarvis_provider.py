@@ -9,6 +9,7 @@ from jarvis_room.provider_contract import (
     ProviderInfo,
     ProviderRequest,
     ProviderResponse,
+    ProviderResourceUnavailable,
     ProviderUnavailable,
 )
 from jarvis_room.provider_registry import ProviderRegistry
@@ -70,12 +71,10 @@ class TestOpenJarvisProvider(unittest.TestCase):
                 "jarvis_room.conversation_adapter.check_current_resources",
                 return_value=InferenceDecision(False, reason),
             ) as check, patch("builtins.__import__", wraps=__import__) as imports:
-                with self.assertRaises(ProviderUnavailable) as error:
+                with self.assertRaises(ProviderResourceUnavailable) as error:
                     registry.respond(provider.info.identifier, self.request)
             check.assert_called_once_with()
-            self.assertEqual(
-                str(error.exception), f"Inferência local bloqueada: {reason}"
-            )
+            self.assertEqual(str(error.exception), reason)
             self.assertFalse(
                 any(call.args[0] == "openjarvis" for call in imports.call_args_list)
             )
