@@ -4,6 +4,7 @@ Não recebe respostas de LLM, não envia HTTP e não emite auditoria duplicada.
 Só as interfaces explícitas de operador podem chamar esta função.
 """
 
+from dataclasses import replace
 from pathlib import Path
 
 from .samsung_audit import PrivateSamsungAudit
@@ -22,7 +23,7 @@ def execute_natural_intent(
     intent: SamsungNaturalIntent, *, token_file: Path, audit_file: Path,
     observation_timeout: float = 30.0,
 ) -> SamsungCommandResult:
-    if type(intent) is not SamsungNaturalIntent or not intent.recognized:
+    if type(intent) is not SamsungNaturalIntent or intent.recognized is not True:
         raise SamsungLabError("invalid_action")
     # Revalida a correspondência completa, inclusive ação e entidade vinculadas.
     if parse_samsung_intent(intent.phrase) != intent:
@@ -41,9 +42,17 @@ def execute_natural_intent(
         raise SamsungLabError("audit_unavailable") from None
     permit = authorize_manual(request)
     token = load_samsung_token(token_file)
-    with PrivateSamsungAudit(audit_file) as audit:
-        client = SamsungRESTClient(token=token, read_enabled=True, commands_enabled=True)
-        return execute_samsung_manual(
-            client, request, permit, audit,
-            observation_timeout=window.timeout_seconds,
-        )
+    result = None
+    try:
+        with PrivateSamsungAudit(audit_file) as audit:
+            client = SamsungRESTClient(token=token, read_enabled=True, commands_enabled=True)
+            result = execute_samsung_manual(
+                client, request, permit, audit,
+                observation_timeout=window.timeout_seconds,
+            )
+    except (Exception, KeyboardInterrupt):
+        if type(result) is not SamsungCommandResult:
+            raise
+        # Erro ao fechar o log não apaga um aceite já obtido pelo controlador.
+        return replace(result, audit_complete=False, error_code="audit_unavailable")
+    return result
