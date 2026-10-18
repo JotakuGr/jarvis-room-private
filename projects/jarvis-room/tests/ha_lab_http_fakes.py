@@ -22,3 +22,17 @@ class FakeHTTP:
         response.status = self.status
         response.geturl = lambda: self.redirect_url or request.full_url
         return response
+
+
+class LabHTTP(FakeHTTP):
+    """Simula ping e leitura do helper, sem qualquer instância HA."""
+
+    def __init__(self, state="on", **kwargs):
+        super().__init__(**kwargs)
+        self.state_payload = {
+            "entity_id": "input_boolean.jarvis_lab_light", "state": state,
+        }
+
+    def open(self, request, *, timeout):
+        self.payload = {"message": "API running."} if request.full_url.endswith("/api/") else self.state_payload
+        return super().open(request, timeout=timeout)
