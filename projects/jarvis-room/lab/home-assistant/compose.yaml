@@ -1,0 +1,14 @@
+name: jarvis-ha-lab
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: "no"
+    stop_grace_period: 60s
+    ports:
+      - "127.0.0.1:18123:8123"
+    environment:
+      TZ: America/Bahia
+    volumes:
+      - ha_lab_config:/config
+volumes:
+  ha_lab_config:
