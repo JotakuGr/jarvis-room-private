@@ -1,8 +1,8 @@
 # Relatório técnico — Sprint 5: Samsung por texto
 
 Data: 18/10/2026 (America/Bahia).
-Status: S5.1–S5.10 validadas offline e em CI; extensão S5.11 validada localmente,
-CI da extensão em verificação. Homologação física das novas interfaces e revisão
+Status: S5.1–S5.10 e extensão S5.11 validadas offline e em CI.
+Homologação física das novas interfaces e revisão
 técnica externa pendentes. Não é reconhecimento de voz. Nenhum PR/merge automático.
 
 As seções S5.1–S5.10 abaixo preservam a entrega original de 441 testes. A extensão
@@ -174,7 +174,7 @@ humana. Nenhuma ação física, PR ou merge será executado automaticamente.
 
 ## Adendo — S5.11: sessão textual contínua (18/10/2026)
 
-Status: implementação e testes offline aprovados; CI em verificação;
+Status: implementação, testes offline e CI aprovados;
 homologação física específica da sessão e revisão externa pendentes.
 
 ### Base e escopo
@@ -199,8 +199,8 @@ foi substituída por entradas simuladas: criou-se uma capacidade própria de ses
 | S5.11.4 | `SamsungSessionControl` em `samsung_natural_control.py`; mesmo controlador REST/auditoria | On/off, um POST por turno, atraso, timeout, entrega incerta | Aprovado simulado | `977f3ce8` | Nenhum teste físico novo |
 | S5.11.5 | Catálogo e provedor local opcional; configuração/memória preservadas; saída nunca redistribuída | Injeção na resposta LLM sem chamada ao controlador; comando não chega ao modelo | Aprovado simulado | `977f3ce8` | Sem inferência real nesta implementação |
 | S5.11.6 | Token/log externos, permissões, allowlists e flags falsas; erro de log encerra sessão | Falha de token, log antes/depois do POST e fechamento, 401/403, redirect | Aprovado | `977f3ce8` | Identidade institucional fora do escopo |
-| S5.11.7 | `test_samsung_session_policy.py`, `test_room_session_cli.py` | 53 novos; regressão padrão e conexões proibidas | 494/494 | `1ea6e6b1`, `977f3ce8` | CI registrado após publicação |
-| S5.11.8 | README, ADR-0003, guia de integração e este adendo | Revisão de documentação e `git diff --check` | Aprovado localmente | Commit documental S5.11 no histórico da branch | Revisão técnica e homologação física |
+| S5.11.7 | `test_samsung_session_policy.py`, `test_room_session_cli.py` | 53 novos; regressão padrão e conexões proibidas | 494/494 local; CI aprovado | `1ea6e6b1`, `977f3ce8` | Revisão externa |
+| S5.11.8 | README, ADR-0003, guia de integração e este adendo | Revisão de documentação, `git diff --check` e CI | Aprovado | `10cf9372` + complemento documental de evidência | Revisão técnica e homologação física |
 
 ### Arquitetura e mudança de autorização
 
@@ -268,8 +268,18 @@ Auditorias e tokens reais não foram lidos, criados ou versionados.
 
 Workflow existente já cobre esta branch. Nenhuma alteração de gatilho, permissões
 ou segredos foi necessária: Python 3.11, `contents: read`, somente unittest offline.
-Commits da implementação: `1ea6e6b1` e `977f3ce8`. Evidência remota será registrada
-depois do push, distinguindo o resultado local do GitHub Actions.
+Commits da implementação: `1ea6e6b1` e `977f3ce8`; documentação: `10cf9372`.
+Todos publicados na feature, sem reescrita de histórico ou alterações de main.
+Evidência remota consultada pela API do GitHub, separada da regressão local:
+
+- SHA validado: `10cf9372457994db7706ca37f2467e7fe3ae6dec`.
+- [Workflow S5.11 — execução 39166540616](https://github.com/JotakuGr/jarvis-room-private/actions/runs/39166540616).
+- Workflow `JARVIS Room offline unittest`: **completed/success**.
+- Job `unittest-offline`, ID `117790554274`: **completed/success**.
+- Git limpo e sincronizado após o push da implementação/documentação.
+
+Este complemento registra a evidência já obtida. O SHA documental final também
+terá push e CI conferidos na entrega, sem PR ou merge automático.
 
 ### Homologação e riscos pendentes
 
@@ -282,7 +292,7 @@ sessão e procedimento supervisionado estão no [guia](../integrations/samsung-n
 - [x] Sem controle por resposta de LLM, gateway genérico, read-only ou voz.
 - [x] Revogação em saída normal, EOF, Ctrl+C, troca/perda de terminal e erro.
 - [x] Documentação da mudança de autorização e riscos.
-- [ ] CI S5.11 confirmado com SHA e URL.
+- [x] CI S5.11 confirmado com SHA e URL.
 - [ ] Revisão técnica externa e decisão humana sobre PR.
 - [ ] Homologação física específica da sessão textual habilitada.
 
@@ -294,6 +304,6 @@ de arquivos/logs, microfone ou ferramentas físicas. O token HA continua amplo,
 e scripts podem mudar fora do Git. Estado HA não prova causalidade ou observação
 física independente. Nenhuma ação real foi executada para fechar esse requisito.
 
-A extensão está implementada e validada offline. Não declarar homologação física
+A extensão está implementada e validada offline e em CI. Não declarar homologação física
 nem encerramento definitivo da Sprint 5 antes da revisão e prova supervisionada.
 Nenhum PR será aberto ou merge realizado automaticamente.
