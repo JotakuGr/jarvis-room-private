@@ -5,7 +5,7 @@ import uuid
 
 from .samsung_audit import SamsungAuditEvent, SamsungAuditRecorder
 from .samsung_contract import SamsungCommandUncertain, SamsungLabError, SamsungRequest
-from .samsung_manual_policy import consume_manual_permit
+from .samsung_authorization import consume_control_permit
 from .samsung_observation import ObservationSummary, ObservationWindow
 from .samsung_rest_client import SamsungRESTClient
 from .samsung_state import SamsungCommandResult, parse_samsung_state
@@ -32,7 +32,7 @@ def execute_samsung_manual(
     if not isinstance(recorder, SamsungAuditRecorder):
         raise SamsungLabError("audit_unavailable")
     window = ObservationWindow(observation_timeout, poll_interval)
-    consume_manual_permit(permit, request)
+    consume_control_permit(permit, request)
     request_id = uuid.uuid4().hex
     before = after = None
     delivery, error_code, audit_complete = "not_attempted", None, True
