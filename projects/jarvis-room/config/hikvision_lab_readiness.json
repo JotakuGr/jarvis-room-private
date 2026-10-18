@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "model": "DS-D5B65RB/D",
+  "device_id": "hikvision_board",
+  "status": "planned",
+  "control_verified": false,
+  "display_track": {
+    "host_computer": "unknown",
+    "hdmi_cable": "unknown",
+    "touch_usb_cable": "unknown",
+    "display_verified": false
+  },
+  "control_track": {
+    "equipment_available": "unknown",
+    "label_revision": "unknown",
+    "firmware": "unknown",
+    "rs232_protocol_verified": false,
+    "command_set_verified": false,
+    "state_feedback_verified": false,
+    "network_access_authorized": false,
+    "institutional_permission": false
+  }
+}

@@ -31,3 +31,18 @@ def load_object(path: Path, error_type: type[ValueError]) -> dict:
 
 def nonempty(value: object) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def matches_exact_plan(data: object, expected: object) -> bool:
+    """Confere campos aninhados e tipos exatos, incluindo bool versus int."""
+    if type(data) is not type(expected):
+        return False
+    if isinstance(expected, dict):
+        return set(data) == set(expected) and all(
+            matches_exact_plan(data[key], value) for key, value in expected.items()
+        )
+    if isinstance(expected, list):
+        return len(data) == len(expected) and all(
+            matches_exact_plan(a, b) for a, b in zip(data, expected)
+        )
+    return data == expected
