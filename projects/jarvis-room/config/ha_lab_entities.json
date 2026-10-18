@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "mode": "lab_virtual_only",
+  "bindings": [
+    {
+      "device_id": "room_main_lights",
+      "entity_id": "input_boolean.jarvis_lab_light",
+      "kind": "virtual_helper",
+      "physical": false,
+      "read_only": true
+    }
+  ]
+}
