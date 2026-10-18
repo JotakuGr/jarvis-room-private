@@ -1,7 +1,7 @@
 # Relatório técnico — Sprint 5: Samsung por texto
 
 Data: 18/10/2026 (America/Bahia).
-Status: implementação offline pronta para revisão; homologação física da nova
+Status: implementação offline e CI aprovados, pronta para revisão; homologação física da nova
 interface pendente. Não é reconhecimento de voz. Nenhum PR/merge automático.
 
 ## Base, ambiente e revisão S5.1
@@ -31,8 +31,8 @@ S5.6 precedeu S5.4/S5.5 para que as duas interfaces compartilhassem a apresenta�
 | S5.6 | `samsung_natural_responses.py`, `test_samsung_natural_responses.py` | 13 novos | 397/397 | `7f0df4fc` | Evidência física futura separada |
 | S5.7 | Reforço do adaptador e `test_samsung_natural_security.py` | 9 novos | 429/429 | `f4d66658` | Identidade institucional fora do escopo |
 | S5.8 | `test_sprint5_e2e.py` | 12 novos | 441/441 | `239607b7` | Não substitui homologação física |
-| S5.9 | Este relatório, guia de integração, README e ADR | Regressão anterior preservada | 441/441 | Commit que contém a documentação | Revisão técnica final |
-| S5.10 | Filtro do workflow, publicação e evidências CI | Suíte offline completa | Local 441/441; CI consultado após push | Commit de CI/publicação e complemento de evidência | Conferir SHA/workflow efetivos |
+| S5.9 | Este relatório, guia de integração, README e ADR | Regressão anterior preservada | 441/441 | `e0aeea73` | Revisão técnica final |
+| S5.10 | Filtro do workflow, publicação e evidências CI | Suíte offline completa | Local 441/441; CI aprovado | `494875b6` e complemento documental de evidência | Conferir checks do futuro PR |
 
 Total: **356 anteriores + 85 novos = 441 aprovados**. Nenhum teste falhou ou foi
 ignorado nas execuções registradas. Os testes anteriores não foram editados.
@@ -89,6 +89,8 @@ preservando os diagnósticos explícitos já testados das interfaces anteriores.
   Scripts ausentes e erros HTTP preservam os bloqueios.
 - Um emissor de auditoria: correlação única, autorização, tentativa, entrega,
   estado e métricas. Nenhum prompt, resposta do modelo ou credencial é registrado.
+  Bloqueios anteriores à autorização não abrem JSONL privado; retornam códigos
+  sanitizados pela interface. A auditoria persistente começa no controlador.
 - Erro ao fechar auditoria depois do resultado preserva o aceite e informa log
   incompleto. Erros internos/credenciais não aparecem em respostas ou relatórios.
 - HTTP 200 isolado, estado tardio e timeout não geram falsa conclusão física.
@@ -105,7 +107,7 @@ Git. O estado HA não é sensor independente nem prova causalidade.
 
 - Chamadas HA reais: **0**.
 - Ações físicas reais: **0**.
-- Tokens reais lidos/criados: **0**.
+- Tokens reais do HA lidos/criados: **0**.
 - Inferências LLM: **0**.
 - Modificações em scripts/contêineres/dispositivos: **0**.
 - PR aberto ou merge: **não**.
@@ -125,9 +127,20 @@ git diff --check
 
 Log local: `/tmp/jarvis-sprint5-tests.log`, não versionado. Workflow existente
 mantém Python 3.11 e `permissions: contents: read`; somente o filtro da branch
-precisa incluir Sprint 5, preservando os gatilhos anteriores. Sem Docker,
-credenciais ou endpoints reais no job. A execução remota será consultada no
-SHA publicado e registrada em complemento, separadamente da regressão local.
+foi ampliado para incluir Sprint 5, preservando os gatilhos anteriores. Sem Docker,
+credenciais ou endpoints reais no job.
+
+Evidência remota verificada pela API do GitHub:
+
+- SHA da implementação: `494875b693091df7f7bca28b2832d65f47cd48a0`.
+- [Execução 39161550741](https://github.com/JotakuGr/jarvis-room-private/actions/runs/39161550741).
+- Workflow: `JARVIS Room offline unittest`; job `unittest-offline`.
+- Resultado: **completed/success**. Regressão local e CI foram verificados separadamente.
+
+Todos os commits foram publicados na feature, sem reescrever histórico. A árvore
+estava limpa e sincronizada após o push da implementação. Este complemento
+apenas registra a evidência; o CI do SHA documental final também será conferido
+e informado na entrega, sem criar PR ou merge.
 
 ## Homologação física futura, voz e prontidão de PR
 
@@ -145,10 +158,11 @@ Checklist para revisão:
 - [x] Interfaces opt-in incompatíveis com inferência e default bloqueado.
 - [x] 441 testes locais, inclusive negativos e E2E com sockets bloqueados.
 - [x] Documentação, Mermaid e limitações; nenhuma credencial/log privado staged.
-- [ ] Conferir CI do SHA final publicado e limpeza do Git na entrega.
+- [x] CI da implementação publicado aprovado, com SHA e execução registrados.
+- [x] Git limpo e sincronizado após publicar a implementação; reconferido na entrega.
 - [ ] Revisão técnica externa e decisão humana sobre abertura do PR.
 - [ ] Homologação física específica das novas interfaces.
 
-A implementação offline está pronta para revisão quando o CI final for aprovado.
+A implementação offline está pronta para revisão; o CI da implementação foi aprovado.
 Homologação física/produção e abertura de PR permanecem pendentes de decisão
 humana. Nenhuma ação física, PR ou merge será executado automaticamente.

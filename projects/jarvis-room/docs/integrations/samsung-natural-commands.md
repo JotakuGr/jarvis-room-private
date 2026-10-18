@@ -175,7 +175,10 @@ do token só é carregado depois. Não houve novo esquema de permissões ou RBAC
 
 O controlador continua sendo o único emissor de eventos: autorização, tentativa,
 entrega, estado, métricas, erros e correlação. O adaptador natural não registra
-texto/prompt nem duplica eventos. Erro ao fechar o log depois de obter resultado
+texto/prompt nem duplica eventos. Recusas anteriores à autorização não abrem
+JSONL privado; seus códigos sanitizados ficam na resposta da CLI. A auditoria
+persistente começa nas chamadas que chegam ao controlador após a autorização.
+Erro ao fechar o log depois de obter resultado
 preserva o envio conhecido e informa auditoria incompleta.
 
 As respostas distinguem `awaiting_authorization`, `unsupported`, `not_authorized`,
