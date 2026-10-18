@@ -81,6 +81,15 @@ class TestSamsungLabCLI(unittest.TestCase):
             self.assertEqual(report["error"], expected)
             self.assertEqual(calls, [])
 
+    def test_token_nao_pode_ser_destino_da_auditoria(self):
+        contents = self.token.read_bytes()
+        args = ["--execute", "turn_on", "--token-file", str(self.token), "--audit-file", str(self.token)]
+        code, report, calls = self.run_cli(args, env={CONTROL_OPT_IN: "1"})
+        self.assertEqual(code, 1)
+        self.assertEqual(report["error"], "audit_unavailable")
+        self.assertEqual(calls, [])
+        self.assertEqual(self.token.read_bytes(), contents)
+
     def test_execucao_simulada_nunca_confirma_fisicamente(self):
         fake = SamsungHTTP(tv_states=("off", "on"))
         code, report, _ = self.run_cli(self.execute_args(), env={CONTROL_OPT_IN: "1"}, fake=fake)

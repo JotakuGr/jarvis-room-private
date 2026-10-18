@@ -28,14 +28,17 @@ nem consultamos a instância para validar essas declarações nesta implementaç
 | S4.4 | `samsung_state.py` e teste; separação de envio, HA e confirmação física | 8 | 299/299 | `9e1ebd17` |
 | S4.5 | `samsung_manual_policy.py` e teste; TTY, opt-in e permissão única de 60 s | 8 | 307/307 | `a5ed1765` |
 | S4.6 | `samsung_audit.py` e teste; JSONL privado e eventos estritos | 8 | 315/315 | `81c38a84` |
-| S4.7 | `samsung_control.py`, `samsung_lab_cli.py`, teste; orquestração manual e polling limitado | 12 | 327/327 | `d2cc4e0a` |
+| S4.7 | `samsung_control.py`, `samsung_lab_cli.py`, teste; orquestração manual e polling limitado | 12 + 1 na revisão final | 327/327; final 336/336 | `d2cc4e0a` + correção final |
 | S4.8 | `test_sprint4_e2e.py`; sockets reais proibidos, falhas e isolamento | 8 | 335/335 | `bc41ee32` |
-| S4.9 | ADR, procedimento, relatório, README e filtro de branch CI | 0 | 335/335 | `2531b6d9`; evidência de CI neste complemento documental |
+| S4.9 | ADR, procedimento, relatório, README e filtro de branch CI | 0 | 336/336 final | `2531b6d9`, `59325624` e complemento da revisão final |
 
 O contrato/resultado foram complementados nas tarefas que introduzem suas
 semânticas. Cada tarefa executou testes específicos e regressão completa.
 Todos os testes executados passaram; nenhuma falha atual ou teste ignorado.
-Total: **261 anteriores + 74 novos = 335 aprovados**.
+Total: **261 anteriores + 75 novos = 336 aprovados**.
+A revisão final acrescentou um teste e recusou token/auditoria no mesmo caminho,
+evitando que a abertura append do log corrompa o arquivo da credencial.
+Os 335 testes da entrega inicial e o teste adicional estão aprovados.
 
 Pendências das tarefas: S4.1/S4.3, verificar IDs e conteúdo reais dos scripts;
 S4.2, provisionamento privado do token pelo operador; S4.4, evidência física
@@ -102,7 +105,7 @@ PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.room_chat_cli 'Lig
 git diff --check
 ```
 
-Regressão offline: **335/335**, log temporário fora do Git. CLI Samsung padrão
+Regressão offline final: **336/336**, log temporário fora do Git. CLI Samsung padrão
 retorna inventário offline e execução desabilitada. CLI de conversação recusa
 controle Samsung, `acao_verificada=false`. Nenhum arquivo das Sprints 1–3 foi
 modificado, exceto README e filtro de branch do workflow de testes existente.
@@ -117,7 +120,10 @@ Evidência remota verificada pela API do GitHub: [execução 39151019940](https:
 SHA `2531b6d9908b0bf7d27e9f0784d3244dfaa1d939`, workflow
 `JARVIS Room offline unittest`, job `unittest-offline`: **completed/success**.
 Este complemento apenas registra a evidência do commit de implementação;
-não altera o código validado nem constitui aprovação de um futuro PR.
+não constitui aprovação de um futuro PR. O complemento documental `59325624`
+também foi aprovado na [execução 39151105771](https://github.com/JotakuGr/jarvis-room-private/actions/runs/39151105771).
+A correção final do caminho de auditoria será conferida novamente no CI do
+seu SHA publicado; seu resultado será informado na entrega final.
 
 ## Homologação física — ainda não realizada
 
@@ -138,7 +144,7 @@ Nenhum PR é aberto automaticamente antes da revisão externa solicitada.
 - [x] Cliente read-only/gateway/router existentes preservados e cobertos pelos testes.
 - [x] Destino/métodos/payload fixos; credenciais privadas; erro e auditoria sanitizados.
 - [x] Sem retries de POST, execução por LLM ou confirmação física falsa.
-- [x] 335 testes locais aprovados, incluindo negativos e E2E sem sockets.
+- [x] 336 testes locais aprovados, incluindo negativos e E2E sem sockets.
 - [x] CI do commit de implementação publicado aprovado, com SHA/run registrados.
 - [ ] Conferir os checks do futuro PR e da sua revisão final.
 - [ ] Revisar conteúdos reais dos scripts e confirmar ID de ligar na interface.

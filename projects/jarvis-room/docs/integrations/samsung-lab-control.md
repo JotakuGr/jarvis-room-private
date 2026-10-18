@@ -57,7 +57,8 @@ implementação conecta o LLM à Samsung ou habilita outros equipamentos.
    Preencher o arquivo com editor local; não colar o token no chat, comando,
    histórico, relatório ou CI. Usar arquivo Linux/WSL, não volume Windows sem
    permissões Unix confiáveis. O cliente recusa links e arquivos com hardlinks.
-5. Reservar arquivo JSONL externo para auditoria. Não commitar o token ou log.
+5. Reservar arquivo JSONL externo para auditoria, diferente do arquivo de token.
+   A CLI recusa usar o token como destino de auditoria. Não commitar o token ou log.
    Nenhum onboarding, token ou script é criado automaticamente por este código.
 
 ## Comandos manuais para a sessão autorizada

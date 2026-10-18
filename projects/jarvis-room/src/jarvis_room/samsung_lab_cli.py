@@ -49,6 +49,8 @@ def main() -> None:
                     raise SamsungLabError("audit_unavailable")
             if args.token_file is None:
                 raise SamsungLabError("token_required")
+            if args.execute and args.audit_file.expanduser().resolve() == args.token_file.expanduser().resolve():
+                raise SamsungLabError("audit_unavailable")
             token = load_samsung_token(args.token_file)
             if args.read:
                 report = read_samsung_status(SamsungRESTClient(token=token, read_enabled=True))

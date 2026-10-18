@@ -161,7 +161,7 @@ explicitamente autorizada e revisão final.
   read-only da Sprint 3 permanecem intactos.
 - Estado reportado pelo HA, comando aceito e confirmação física são distintos;
   `physical_action_verified` permanece falso.
-- **335/335 testes locais**: 261 anteriores preservados e 74 novos simulados.
+- **336/336 testes locais**: 261 anteriores preservados e 75 novos simulados.
   Nenhuma chamada à instância HA/TV ou inferência foi executada nesta implementação.
 
 [Procedimento de homologação Samsung](docs/integrations/samsung-lab-control.md),
