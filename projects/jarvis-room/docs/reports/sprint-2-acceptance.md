@@ -2,7 +2,8 @@
 
 Data: 17/10/2026 (America/Bahia).
 
-Status: homologação offline aprovada; revisão técnica externa pendente.
+Status: homologação offline e revisão técnica externa do código aprovadas;
+PR, CI e merge pendentes.
 
 Branch: `feature/sprint2-home-assistant-offline`.
 Repositório: `JotakuGr/jarvis-room-private`.
@@ -36,8 +37,14 @@ são atividades de documentação/publicação, externas às simulações.
 
 Cada tarefa de implementação teve testes específicos, regressão completa e
 `git diff --check` aprovados antes de seu commit.
-Total: **56 novos testes, 195/195 aprovados, sem falhas ou erros**.
-Não houve mudança na contagem planejada.
+Entrega original: **195/195 testes aprovados**, sem falhas ou erros,
+com 56 novos testes e baseline de 139.
+
+Após a correção do vínculo sintético:
+
+- Baseline da Sprint 1: 139 testes
+- Testes da Sprint 2: 58
+- Total: **197/197 aprovados**
 
 ### Correção após revisão — vínculo da simulação
 
@@ -51,8 +58,13 @@ chamadas ao fake, e leitura única do vínculo válido. A regressão desta corre
 confirmou **197/197 testes aprovados**, com **10/10** no verificador de estados.
 O baseline continua em 139; o acréscimo acumulado passa de 56 para 58 testes.
 Nenhuma integração física ou inferência real foi executada. As contagens de
-195 e os commits da tabela acima registram a entrega original; esta correção
-é uma alteração posterior, ainda não commitada ou publicada nesta execução.
+195 e os commits da tabela acima registram a entrega original.
+
+A correção do vínculo sintético foi publicada na branch
+`feature/sprint2-home-assistant-offline`.
+
+A revisão técnica externa do código foi aprovada.
+Permanecem pendentes a validação de CI e o merge na `main`.
 
 ## Homologação final offline
 
@@ -140,13 +152,13 @@ Os comandos `on`, `off`, `color`, `brightness` e `effect` são negados.
 
 ## Publicação e revisão
 
-As oito tarefas são entregues na mesma branch, com um commit por tarefa.
-O destino de publicação é `origin/feature/sprint2-home-assistant-offline`.
-O relatório consolidado e a branch serão apresentados para revisão técnica.
+As implementações das oito tarefas e a correção do vínculo sintético estão
+publicadas em `origin/feature/sprint2-home-assistant-offline`.
+A revisão técnica externa do código foi aprovada, conforme confirmação do responsável.
 Nenhuma alteração foi enviada ao `upstream` oficial do OpenJarvis.
 
-Não fazer merge automaticamente. Abertura de PR para `main`, análise de CI,
-correções e merge ficam condicionados à revisão técnica solicitada.
+Não fazer merge automaticamente. Permanecem pendentes a abertura de PR para
+`main`, a validação de CI e o merge.
 Somente depois dessa etapa deve começar a Sprint 3.
 
 ## Decisões pendentes para a Sprint 3
@@ -157,7 +169,7 @@ Somente depois dessa etapa deve começar a Sprint 3.
 - Instância Home Assistant de testes e associação de entidades reais.
 - Identidade autenticada, permissões, execução confiável e auditoria operacional.
 - Medições elétricas WS2815, topologia de zonas e capacidade dos controladores.
-- Revisão técnica externa, PR, CI e merge da Sprint 2 antes de nova integração.
+- PR, validação de CI e merge da Sprint 2 antes de nova integração.
 
 ## Fontes
 
