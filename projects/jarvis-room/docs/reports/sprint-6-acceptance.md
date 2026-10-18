@@ -96,7 +96,7 @@ IPs, entidades de equipamentos planejados, protocolo serial, WLED ou dados elét
 
 Os inventários anteriores permanecem byte a byte preservados. Os seis IDs de
 `home_assistant_devices.json` têm vínculo único e explícito no catálogo novo,
-validado por `legacy_catalog_links()`. Fabricante/modelo conhecidos são conferidos.
+validado por `legacy_catalog_links()`. Categoria e fabricante/modelo conhecidos são conferidos.
 `capabilities.json`, `samsung_lab.json` e `wled_zones.json` continuam com seus
 contratos originais. `execution_available=false` diz respeito ao orquestrador,
 inclusive para Samsung; não remove sua integração manual individual S5.11.

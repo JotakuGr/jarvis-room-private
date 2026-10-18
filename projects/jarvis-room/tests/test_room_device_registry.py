@@ -61,6 +61,13 @@ class TestRoomDeviceRegistry(OfflineRoomTest):
         path = self.modified(lambda d: d["devices"][-1].update(capabilities=["turn_on"], requires_physical_authorization=True))
         with self.assertRaises(RoomRegistryError):
             load_room_devices(path)
+        # Reclassificar o ID legado também não pode fabricar um atuador.
+        path = self.modified(lambda d: d["devices"][-1].update(
+            category="audio", group="audio", capabilities=["turn_on", "turn_off"],
+            requires_physical_authorization=True,
+        ))
+        with self.assertRaises(RoomRegistryError):
+            load_room_devices(path)
 
     def test_arquivo_ausente_json_e_chaves_duplicadas(self):
         path = self.json_file({})

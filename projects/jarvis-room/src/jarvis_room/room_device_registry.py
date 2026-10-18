@@ -126,7 +126,10 @@ def load_room_devices(path: Path = DEFAULT_PATH) -> dict[str, RoomDevice]:
                 raise ValueError()
             for ref in refs:
                 old = legacy[ref]
-                if ref != raw["id"] or (old.model is not None and old.model != raw["model"]) or (old.manufacturer is not None and old.manufacturer != raw["manufacturer"]):
+                old_category = "display" if old.category in ("interactive_display", "display") else old.category
+                if (ref != raw["id"] or category != old_category
+                    or (old.model is not None and old.model != raw["model"])
+                    or (old.manufacturer is not None and old.manufacturer != raw["manufacturer"])):
                     raise ValueError()
                 links.add(ref)
             assumptions = raw["assumptions"]

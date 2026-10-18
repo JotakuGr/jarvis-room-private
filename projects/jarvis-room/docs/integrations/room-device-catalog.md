@@ -64,7 +64,9 @@ uma nova integração física exige evidência, revisão de código e autorizaç
 Os inventários `home_assistant_devices.json`, `capabilities.json`,
 `samsung_lab.json` e `wled_zones.json` não foram alterados. A função
 `legacy_catalog_links()` confere os seis IDs legados, sem referências desconhecidas,
-sem omissões e preservando fabricante/modelo conhecidos. O placeholder mantém
+sem omissões e preservando categoria e fabricante/modelo conhecidos. A categoria
+legada `interactive_display` é traduzida explicitamente para `display`. Sensores
+não podem ser reclassificados como áudio/tela para fabricar atuação. O placeholder mantém
 seu ID. Não há migração destrutiva nem substituição silenciosa de consultas antigas.
 Os novos comandos de inventário usam o catálogo unificado; a consulta declarativa
 antiga de capacidades mantém o contrato das Sprints 1–5.
