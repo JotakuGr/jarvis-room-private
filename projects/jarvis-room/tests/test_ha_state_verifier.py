@@ -71,3 +71,29 @@ class TestHAStateVerifier(unittest.TestCase):
     def test_gateway_padrao_continua_negando(self):
         for action in ("turn_on", "turn_off"):
             self.assertIn("Não executei", RoomControlGateway().execute("light.sala", action))
+
+    def test_dispositivo_sem_vinculo_simulado(self):
+        fake = FakeHATransport({"light.sala": "on"})
+        for device_id in (
+            "hikvision_board",
+            "led_perimeter",
+            "presence_sensor",
+            "unknown_device",
+        ):
+            with self.subTest(device_id=device_id):
+                result = check_simulated_state(device_id, "turn_on", fake)
+                self.assertEqual(result.outcome, "simulated_error")
+                self.assertFalse(result.physical_action_verified)
+        self.assertEqual(fake.calls, [])
+
+    def test_vinculo_simulado_valido(self):
+        fake = FakeHATransport({"light.sala": "on"})
+        result = check_simulated_state(
+            "room_main_lights",
+            "turn_on",
+            fake,
+            entity_id="light.sala",
+        )
+        self.assertEqual(result.outcome, "simulated_match")
+        self.assertFalse(result.physical_action_verified)
+        self.assertEqual(fake.calls, [("get_state", "light.sala")])

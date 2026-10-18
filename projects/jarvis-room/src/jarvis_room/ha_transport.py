@@ -6,7 +6,12 @@ A allowlist abaixo pertence somente à simulação, não ao inventário físico.
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-SIMULATED_ENTITY_IDS = frozenset({"light.sala"})
+# Vínculo exclusivamente sintético para testes.
+# Não representa entidade descoberta no Home Assistant.
+SIMULATED_DEVICE_BINDINGS = {
+    "room_main_lights": "light.sala",
+}
+SIMULATED_ENTITY_IDS = frozenset(SIMULATED_DEVICE_BINDINGS.values())
 
 
 class HaTransportError(RuntimeError):

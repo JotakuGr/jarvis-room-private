@@ -8,7 +8,13 @@ import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from .ha_transport import DisabledHATransport, HATransport, StateSnapshot, validate_entity_id
+from .ha_transport import (
+    SIMULATED_DEVICE_BINDINGS,
+    DisabledHATransport,
+    HATransport,
+    StateSnapshot,
+    validate_entity_id,
+)
 
 
 @dataclass(frozen=True)
@@ -35,7 +41,12 @@ def check_simulated_state(
     def result(outcome, observed=None):
         return SimulatedActionResult(device_id, action, requested, observed, outcome)
 
-    if not isinstance(device_id, str) or re.fullmatch(r"[a-z][a-z0-9_]*", device_id) is None or requested is None:
+    if (
+        not isinstance(device_id, str)
+        or re.fullmatch(r"[a-z][a-z0-9_]*", device_id) is None
+        or requested is None
+        or SIMULATED_DEVICE_BINDINGS.get(device_id) != entity_id
+    ):
         return result("simulated_error")
     try:
         validate_entity_id(entity_id)

@@ -39,6 +39,21 @@ Cada tarefa de implementação teve testes específicos, regressão completa e
 Total: **56 novos testes, 195/195 aprovados, sem falhas ou erros**.
 Não houve mudança na contagem planejada.
 
+### Correção após revisão — vínculo da simulação
+
+Após a homologação original de 195 testes, foi acrescentada a associação
+exclusivamente sintética `room_main_lights → light.sala`. O verificador exige
+esse vínculo antes de ler o transporte. Lousa, fitas LED, sensor de presença e
+IDs desconhecidos não podem reutilizar o estado simulado da iluminação.
+
+Foram adicionados dois testes: recusa dos dispositivos sem vínculo, sem
+chamadas ao fake, e leitura única do vínculo válido. A regressão desta correção
+confirmou **197/197 testes aprovados**, com **10/10** no verificador de estados.
+O baseline continua em 139; o acréscimo acumulado passa de 56 para 58 testes.
+Nenhuma integração física ou inferência real foi executada. As contagens de
+195 e os commits da tabela acima registram a entrega original; esta correção
+é uma alteração posterior, ainda não commitada ou publicada nesta execução.
+
 ## Homologação final offline
 
 Comandos executados a partir da raiz `openjarvis`:

@@ -87,7 +87,8 @@ Não haverá merge automático nem início da Sprint 3 antes dessa revisão.
 **Home Assistant não está conectado. Não há estados reais de LEDs, confirmação
 de equipamentos ou autorização de controle físico.**
 
-Foram aprovados **195 testes locais**: baseline 139 e 56 novos testes offline.
+Foram aprovados **197 testes locais**: baseline 139, 56 novos testes offline
+da implementação original e dois testes da correção do vínculo sintético.
 O modelo `jarvis-dev-lite` permanece experimental; esta sprint não executa
 inferência nem certifica modelo para produção. Modelos maiores serão avaliados
 em ambiente apropriado e na máquina definitiva da Sala Temática.
