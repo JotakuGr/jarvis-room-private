@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 BASE_URL = "http://127.0.0.1:18123"
 TV_ENTITY_ID = "media_player.samsung_bet_series_32_lh32betblggxzd"
-ON_SCRIPT = "script.script_jarvis_ligar_samsung"
+ON_SCRIPT = "script.jarvis_ligar_samsung"
 OFF_SCRIPT = "script.jarvis_desligar_samsung"
 ACTION_SCRIPTS = (("turn_on", ON_SCRIPT), ("turn_off", OFF_SCRIPT))
 ALLOWED_ENTITIES = frozenset({TV_ENTITY_ID, ON_SCRIPT, OFF_SCRIPT})

@@ -1,15 +1,17 @@
 # ADR-0002 — Controle Samsung exclusivo de laboratório e operador
 
-Status: implementação offline; aceitação física e revisão final pendentes.
+Status: implementação e leitura real validadas; aceitação física e revisão final pendentes.
 Data: 18/10/2026. Complementa a ADR-0001 sem liberar ferramentas ao LLM.
 
 ## Contexto e decisão
 
 O operador informou a TV Samsung LH32BETBLGGXZD, a entidade
 `media_player.samsung_bet_series_32_lh32betblggxzd` e dois scripts homologados:
-`script.script_jarvis_ligar_samsung` e `script.jarvis_desligar_samsung`.
+`script.jarvis_ligar_samsung` e `script.jarvis_desligar_samsung`.
 O endereço confirmado é `http://127.0.0.1:18123`.
-Essas declarações não substituem verificação da instância ou inspeção física.
+Em 18/10/2026, consultas GET reais confirmaram a existência da TV e dos dois
+scripts com os identificadores operacionais acima. Essa leitura não verifica
+o conteúdo dos scripts nem substitui inspeção ou confirmação física independente.
 
 Criar inventário e cliente próprios, separados do helper virtual e dos planos
 da Sprint 2. O cliente read-only da Sprint 3 e `RoomControlGateway` não mudam.

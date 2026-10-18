@@ -15,8 +15,10 @@ ao remoto confirmou a base atualizada antes da implementação.
 Python 3.11.17, Ubuntu WSL. Baseline **261/261** aprovado.
 
 O usuário confirmou que o HA permanece em `http://127.0.0.1:18123` e forneceu os
-IDs da TV Samsung LH32BETBLGGXZD e dos scripts. Não usamos senha ou token real
-nem consultamos a instância para validar essas declarações nesta implementação.
+IDs da TV Samsung LH32BETBLGGXZD e dos scripts. Durante a implementação offline,
+não usamos senha ou token real nem consultamos a instância. Na etapa posterior
+de homologação somente leitura, os GETs reais foram autorizados e bem-sucedidos,
+com correção do identificador de ligar conforme o adendo de 18/10/2026.
 
 ## S4.1–S4.9: arquivos, decisões, testes e commits
 
@@ -40,8 +42,8 @@ A revisão final acrescentou um teste e recusou token/auditoria no mesmo caminho
 evitando que a abertura append do log corrompa o arquivo da credencial.
 Os 335 testes da entrega inicial e o teste adicional estão aprovados.
 
-Pendências das tarefas: S4.1/S4.3, verificar IDs e conteúdo reais dos scripts;
-S4.2, provisionamento privado do token pelo operador; S4.4, evidência física
+Pendências das tarefas: S4.1/S4.3, revisar o conteúdo real dos scripts;
+S4.2, manter o token privado provisionado pelo operador; S4.4, evidência física
 independente; S4.5/S4.7, sessão manual autorizada; S4.6, política institucional
 de retenção/proteção de auditoria; S4.8, prova física não substituída por fakes;
 S4.9, revisão final e encerramento condicionados às evidências.
@@ -60,7 +62,7 @@ LLM / room_chat_cli / RoomControlGateway / cliente read-only Sprint 3
 Três entidades GET autorizadas:
 
 - `media_player.samsung_bet_series_32_lh32betblggxzd`.
-- `script.script_jarvis_ligar_samsung`.
+- `script.jarvis_ligar_samsung`.
 - `script.jarvis_desligar_samsung`.
 
 Único POST: `/api/services/script/turn_on`, corpo com somente o ID do script
@@ -132,7 +134,10 @@ Exigir autorização explícita separada, responsável presente, revisão de scr
 e dispositivo, leitura inicial autorizada, um teste por ação e observador
 independente da TV. Guardar resultado humano separado, sem token ou log privado.
 
-Nenhum GET/POST real à instância HA nesta implementação. Nenhum token real lido.
+Nenhum GET/POST real foi realizado durante a implementação offline. Na etapa
+posterior, GETs reais autorizados validaram a leitura da TV e a presença dos
+scripts; o token privado foi usado pela CLI sem exibição ou versionamento.
+Nenhum POST real foi executado pelo Python.
 **Ações físicas: 0. Inferências LLM: 0. Merge: não realizado.**
 Não foi feita mudança no Docker, na instância HA, nos scripts ou na TV.
 Nenhum PR é aberto automaticamente antes da revisão externa solicitada.
@@ -147,7 +152,8 @@ Nenhum PR é aberto automaticamente antes da revisão externa solicitada.
 - [x] 336 testes locais aprovados, incluindo negativos e E2E sem sockets.
 - [x] CI do commit de implementação publicado aprovado, com SHA/run registrados.
 - [ ] Conferir os checks do futuro PR e da sua revisão final.
-- [ ] Revisar conteúdos reais dos scripts e confirmar ID de ligar na interface.
+- [x] Confirmar por GET real o ID operacional de ligar e a presença das três entidades.
+- [ ] Revisar os conteúdos reais dos scripts na interface.
 - [ ] Autorizar e executar homologação física, coletar evidência independente.
 - [ ] Revisão técnica final, tratar achados e decidir abertura/merge do PR.
 - [ ] Declarar Sprint 4 concluída somente após homologação e revisão final.
@@ -155,3 +161,19 @@ Nenhum PR é aberto automaticamente antes da revisão externa solicitada.
 Referências: [ADR-0002](../adr/0002-samsung-manual-control.md),
 [REST oficial](https://contributors.home-assistant.io/core/internals/rest-api/),
 [scripts oficiais](https://www.home-assistant.io/integrations/script/).
+
+## Adendo — Validação da API real em 18/10/2026
+
+- A primeira leitura apresentou `not_found`.
+- O script de ligar antigo retornou HTTP 404.
+- O identificador `script.jarvis_ligar_samsung`
+  retornou HTTP 200.
+- A TV e o script de desligar retornaram HTTP 200.
+- Inventário, contrato e teste negativo corrigidos.
+- Regressão local: 336/336 testes aprovados.
+- `git diff --check`: aprovado.
+- GET real autorizado: bem-sucedido.
+- Estado informado pela Samsung: `off`.
+- POST real pelo Python: não executado.
+- Homologação física pelo Python: pendente.
+- Confirmação física independente: não coletada.

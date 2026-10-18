@@ -1,6 +1,6 @@
 # Samsung LH32BETBLGGXZD — procedimento de laboratório supervisionado
 
-Status: código e testes simulados disponíveis; homologação física pendente.
+Status: código, testes simulados e leitura real validados; homologação física pendente.
 Os comandos de execução abaixo são instruções para uma sessão futura com
 autorização explícita do responsável. Não foram executados nesta implementação.
 
@@ -9,7 +9,7 @@ autorização explícita do responsável. Não foram executados nesta implementa
 | Finalidade | Identificador autorizado |
 | --- | --- |
 | TV | `media_player.samsung_bet_series_32_lh32betblggxzd` |
-| Ligar | `script.script_jarvis_ligar_samsung` |
+| Ligar | `script.jarvis_ligar_samsung` |
 | Desligar | `script.jarvis_desligar_samsung` |
 | Destino | `http://127.0.0.1:18123` |
 | Serviço | `POST /api/services/script/turn_on` |
@@ -18,10 +18,12 @@ O corpo do POST contém somente `entity_id` do script selecionado. Não há
 volume, entrada, toggle, media_player.turn_on, template, variável de script ou
 endpoint arbitrário. O script de desligar é iniciado com `script.turn_on`.
 
-O script de ligar mantém o ID com `script.script_...` informado pelo usuário.
-Se um GET exato retornar 404, interromper. Não trocar para
-`script.jarvis_ligar_samsung` por suposição. Conferir o ID efetivo na interface
-e submeter eventual mudança de allowlist/inventário/testes à revisão.
+O identificador operacional de ligar é `script.jarvis_ligar_samsung`, validado
+por GET real com HTTP 200 em 18/10/2026. O identificador anterior,
+`script.script_jarvis_ligar_samsung`, retornou HTTP 404; inventário, contrato e
+teste negativo foram corrigidos com base nessa evidência. Não há descoberta
+automática nem fallback: um novo 404 deve interromper a operação e levar à
+conferência do ID efetivo antes de outra alteração revisada.
 
 Referências oficiais: [REST](https://contributors.home-assistant.io/core/internals/rest-api/)
 e [scripts](https://www.home-assistant.io/integrations/script/). O estado de

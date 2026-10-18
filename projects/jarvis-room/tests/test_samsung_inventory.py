@@ -32,7 +32,7 @@ class TestSamsungInventory(unittest.TestCase):
         self.assertEqual(SamsungRequest("turn_on").script_entity_id, ON_SCRIPT)
         self.assertEqual(SamsungRequest("turn_off").script_entity_id, OFF_SCRIPT)
         with self.assertRaises(SamsungLabError):
-            self.modified(lambda d: d["scripts"].update(turn_on="script.jarvis_ligar_samsung"))
+            self.modified(lambda d: d["scripts"].update(turn_on="script.script_jarvis_ligar_samsung"))
 
     def test_ausente_json_invalido_e_duplicado(self):
         with tempfile.TemporaryDirectory() as directory:
