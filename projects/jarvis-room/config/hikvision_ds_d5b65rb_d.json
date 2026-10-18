@@ -1,0 +1,10 @@
+{
+  "manufacturer": "Hikvision",
+  "model": "DS-D5B65RB/D",
+  "device_id": "hikvision_board",
+  "status": "planned",
+  "control_protocol_verified": false,
+  "network_control_verified": false,
+  "rs232_command_set_verified": false,
+  "ha_entity_id": null
+}
