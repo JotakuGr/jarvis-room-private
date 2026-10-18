@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "devices": [
+    {"id":"room_main_lights","name":"Iluminação principal","category":"light","manufacturer":null,"model":null,"status":"planned","home_assistant_entity_id":null},
+    {"id":"led_perimeter","name":"Fitas WS2815 do perímetro","category":"led_strip","manufacturer":null,"model":"WS2815 12 V","status":"planned","home_assistant_entity_id":null},
+    {"id":"air_conditioner","name":"Ar-condicionado","category":"climate","manufacturer":null,"model":null,"status":"planned","home_assistant_entity_id":null},
+    {"id":"hikvision_board","name":"Lousa digital interativa de 65 polegadas","category":"interactive_display","manufacturer":"Hikvision","model":"DS-D5B65RB/D","status":"planned","home_assistant_entity_id":null},
+    {"id":"second_display_placeholder","name":"Segundo monitor ou TV — a confirmar","category":"display","manufacturer":null,"model":null,"status":"planned","home_assistant_entity_id":null},
+    {"id":"presence_sensor","name":"Sensor de presença — a definir","category":"presence_sensor","manufacturer":null,"model":null,"status":"planned","home_assistant_entity_id":null}
+  ]
+}
