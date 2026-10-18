@@ -13,7 +13,7 @@ ERROR_CODES = frozenset({
     "target_rejected", "token_required", "auth_error", "not_found",
     "unavailable", "invalid_response", "redirect_rejected", "tls_error",
     "manual_authorization_required", "confirmation_required", "cancelled",
-    "script_not_verified", "audit_unavailable", "operation_failed", "command_outcome_unknown",
+    "script_not_verified", "audit_unavailable", "operation_failed", "command_outcome_unknown", "state_not_matched",
 })
 
 

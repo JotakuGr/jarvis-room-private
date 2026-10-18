@@ -57,10 +57,13 @@ class SamsungCommandResult:
     before: SamsungReportedState | None = None
     after: SamsungReportedState | None = None
     error_code: str | None = None
+    audit_complete: bool = True
     physical_action_verified: bool = field(default=False, init=False)
 
     def __post_init__(self):
         SamsungRequest(self.action)
+        if type(self.audit_complete) is not bool:
+            raise SamsungLabError("invalid_response")
         if not isinstance(self.delivery, str) or self.delivery not in ("not_attempted", "accepted", "rejected", "unknown"):
             raise SamsungLabError("invalid_response")
         if any(item is not None and not isinstance(item, SamsungReportedState) for item in (self.before, self.after)):
@@ -93,4 +96,5 @@ class SamsungCommandResult:
             "physical_action_verified": False,
             "independent_physical_confirmation": "not_collected",
             "error": self.error_code,
+            "audit_complete": self.audit_complete,
         }
