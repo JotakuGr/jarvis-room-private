@@ -13,7 +13,7 @@ ERROR_CODES = frozenset({
     "target_rejected", "token_required", "auth_error", "not_found",
     "unavailable", "invalid_response", "redirect_rejected", "tls_error",
     "manual_authorization_required", "confirmation_required", "cancelled",
-    "script_not_verified", "audit_unavailable", "operation_failed",
+    "script_not_verified", "audit_unavailable", "operation_failed", "command_outcome_unknown",
 })
 
 
@@ -23,6 +23,13 @@ class SamsungLabError(RuntimeError):
     def __init__(self, code: str):
         self.code = code if isinstance(code, str) and code in ERROR_CODES else "operation_failed"
         super().__init__(self.code)
+
+
+class SamsungCommandUncertain(SamsungLabError):
+    """O POST pode ter sido recebido. Não repetir automaticamente."""
+
+    def __init__(self):
+        super().__init__("command_outcome_unknown")
 
 
 @dataclass(frozen=True, slots=True)
