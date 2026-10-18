@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "status": "planned",
+  "led_type": "WS2815",
+  "voltage_nominal_v": 12,
+  "length_m": 100,
+  "leds_per_meter": 60,
+  "controller_family": "ESP32",
+  "firmware": "WLED",
+  "power_design_verified": false,
+  "physical_control_enabled": false
+}
