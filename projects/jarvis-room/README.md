@@ -143,3 +143,32 @@ Detalhes: [relatório da Sprint 3](docs/reports/sprint-3-acceptance.md),
 [fronteiras do laboratório](docs/integrations/ha-lab-architecture.md),
 [checklist Hikvision](docs/integrations/hikvision-lab-checklist.md) e
 [prontidão WLED](docs/integrations/wled-zoning-readiness.md).
+
+### Sprint 4 — Samsung em laboratório físico, aguardando revisão final
+
+Implementação separada para a Samsung **LH32BETBLGGXZD**, na branch
+`feature/sprint4-samsung-ha-control`, derivada da `main` após o merge da Sprint 3
+(PR #12). A Sprint 4 **não está encerrada**: os dois acionamentos autorizados
+foram observados pelo operador; falta consolidar a homologação e a revisão final.
+
+- Inventário exclusivo `config/samsung_lab.json`; não altera o catálogo planejado
+  nem os helpers virtuais das Sprints 2/3.
+- Destino fixo local, GET da TV/scripts e POST somente dos dois scripts fornecidos
+  pelo operador. IDs renomeados não são presumidos ou descobertos por fallback.
+- CLI independente `python3.11 -m jarvis_room.samsung_lab_cli`: offline por padrão;
+  execução manual exige opt-in, terminal, frase exata, token privado e auditoria.
+- Nenhuma ferramenta de LLM recebe esse cliente. `RoomControlGateway` e o cliente
+  read-only da Sprint 3 permanecem intactos.
+- Estado reportado pelo HA, comando aceito e confirmação física são distintos;
+  `physical_action_verified` permanece falso.
+- Observação após aceite: prazo configurável de 1 a 30 s, GETs periódicos sem
+  reenvio do POST, encerramento antecipado e métricas no resultado/auditoria.
+  Timeout significa estado não confirmado no prazo; confirmação física segue falsa.
+- **356/356 testes locais**: 261 anteriores preservados e 95 novos simulados.
+  A janela revisada recebeu 20 testes adicionais, sem novos acionamentos reais.
+  A sessão anterior teve dois POSTs autorizados, com observação visual do operador
+  para ligar e desligar; nenhuma inferência foi executada.
+
+[Procedimento de homologação Samsung](docs/integrations/samsung-lab-control.md),
+[decisão arquitetural](docs/adr/0002-samsung-manual-control.md) e
+[relatório de aceitação](docs/reports/sprint-4-acceptance.md).

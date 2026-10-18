@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "mode": "physical_samsung_lab",
+  "status": "pending_physical_acceptance",
+  "manufacturer": "Samsung",
+  "model": "LH32BETBLGGXZD",
+  "device_id": "samsung_lab_tv",
+  "base_url": "http://127.0.0.1:18123",
+  "entity_id": "media_player.samsung_bet_series_32_lh32betblggxzd",
+  "scripts": {
+    "turn_on": "script.jarvis_ligar_samsung",
+    "turn_off": "script.jarvis_desligar_samsung"
+  },
+  "execution_enabled_by_default": false,
+  "llm_control_enabled": false,
+  "independent_physical_verification": false,
+  "entity_source": "user_report"
+}
