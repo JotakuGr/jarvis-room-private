@@ -2,7 +2,7 @@ name: JARVIS Room offline unittest
 
 on:
   push:
-    branches: [main, feature/sprint3-ha-laboratorio-readonly, feature/sprint4-samsung-ha-control]
+    branches: [main, feature/sprint3-ha-laboratorio-readonly, feature/sprint4-samsung-ha-control, feature/sprint5-samsung-natural-commands]
     paths:
       - 'projects/jarvis-room/**'
       - '.github/workflows/jarvis-room-unittest.yml'
