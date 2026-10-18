@@ -30,7 +30,7 @@ nem consultamos a instância para validar essas declarações nesta implementaç
 | S4.6 | `samsung_audit.py` e teste; JSONL privado e eventos estritos | 8 | 315/315 | `81c38a84` |
 | S4.7 | `samsung_control.py`, `samsung_lab_cli.py`, teste; orquestração manual e polling limitado | 12 | 327/327 | `d2cc4e0a` |
 | S4.8 | `test_sprint4_e2e.py`; sockets reais proibidos, falhas e isolamento | 8 | 335/335 | `bc41ee32` |
-| S4.9 | ADR, procedimento, relatório, README e filtro de branch CI | 0 | 335/335 | Commit que contém este relatório |
+| S4.9 | ADR, procedimento, relatório, README e filtro de branch CI | 0 | 335/335 | `2531b6d9`; evidência de CI neste complemento documental |
 
 O contrato/resultado foram complementados nas tarefas que introduzem suas
 semânticas. Cada tarefa executou testes específicos e regressão completa.
@@ -112,8 +112,12 @@ sem Docker, credenciais operacionais, LLM ou acesso a equipamentos. Foi incluíd
 o gatilho de push para a branch da Sprint 4, preservando os gatilhos anteriores.
 Regressão local e CI são evidências distintas. Consultar a execução do commit
 publicado no [workflow da branch](https://github.com/JotakuGr/jarvis-room-private/actions/workflows/jarvis-room-unittest.yml?query=branch%3Afeature%2Fsprint4-samsung-ha-control).
-O resultado e o link da execução efetiva serão entregues com o relatório final;
-não se presume sucesso remoto a partir do teste local.
+
+Evidência remota verificada pela API do GitHub: [execução 39151019940](https://github.com/JotakuGr/jarvis-room-private/actions/runs/39151019940),
+SHA `2531b6d9908b0bf7d27e9f0784d3244dfaa1d939`, workflow
+`JARVIS Room offline unittest`, job `unittest-offline`: **completed/success**.
+Este complemento apenas registra a evidência do commit de implementação;
+não altera o código validado nem constitui aprovação de um futuro PR.
 
 ## Homologação física — ainda não realizada
 
@@ -135,7 +139,8 @@ Nenhum PR é aberto automaticamente antes da revisão externa solicitada.
 - [x] Destino/métodos/payload fixos; credenciais privadas; erro e auditoria sanitizados.
 - [x] Sem retries de POST, execução por LLM ou confirmação física falsa.
 - [x] 335 testes locais aprovados, incluindo negativos e E2E sem sockets.
-- [ ] Conferir evidência do workflow no SHA final publicado e checks futuros do PR.
+- [x] CI do commit de implementação publicado aprovado, com SHA/run registrados.
+- [ ] Conferir os checks do futuro PR e da sua revisão final.
 - [ ] Revisar conteúdos reais dos scripts e confirmar ID de ligar na interface.
 - [ ] Autorizar e executar homologação física, coletar evidência independente.
 - [ ] Revisão técnica final, tratar achados e decidir abertura/merge do PR.
