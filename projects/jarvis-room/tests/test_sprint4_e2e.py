@@ -7,7 +7,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from unittest.mock import Mock, patch
 
-from samsung_fakes import FAKE_TOKEN, SamsungHTTP
+from samsung_fakes import FAKE_TOKEN, FakeClock, SamsungHTTP
 from jarvis_room.control_gateway import RoomControlGateway
 from jarvis_room.control_guard import ToolReceipt
 from jarvis_room.ha_lab_readonly_client import HALabReadOnlyClient, HALabReadError
@@ -36,7 +36,8 @@ class TestSprint4E2E(unittest.TestCase):
 
     def execute(self, fake, action="turn_on", recorder=None, permit=None):
         client = SamsungRESTClient(token=SamsungToken(FAKE_TOKEN), read_enabled=True, commands_enabled=True, opener=fake)
-        return execute_samsung_manual(client, SamsungRequest(action), self.permit(action) if permit is None else permit, recorder or SamsungAuditRecorder(), sleep=Mock())
+        clock = FakeClock()
+        return execute_samsung_manual(client, SamsungRequest(action), self.permit(action) if permit is None else permit, recorder or SamsungAuditRecorder(), sleep=clock.sleep, clock=clock.monotonic)
 
     def test_ligar_desligar_apenas_scripts_homologados_simulados(self):
         for action, states in (("turn_on", ("off", "on")), ("turn_off", ("on", "off"))):
@@ -62,9 +63,10 @@ class TestSprint4E2E(unittest.TestCase):
                 self.assertEqual(result.delivery, "accepted")
                 self.assertFalse(result.reported_target_match)
                 self.assertFalse(result.physical_action_verified)
-                self.assertIn(result.error_code, ("state_not_matched", "unavailable"))
+                self.assertIn(result.error_code, ("state_observation_timeout", "unavailable"))
                 self.assertEqual(sum(r.method == "POST" for r, _ in fake.calls), 1)
-                self.assertEqual(sum(r.full_url.endswith(TV_ENTITY_ID) for r, _ in fake.calls), 4)
+                self.assertEqual(sum(r.full_url.endswith(TV_ENTITY_ID) for r, _ in fake.calls), result.observation.query_count + 1)
+                self.assertEqual(result.observation.elapsed_seconds, 30)
 
     def test_permissao_expirada_replay_e_llm_nao_enviam(self):
         fake = SamsungHTTP()

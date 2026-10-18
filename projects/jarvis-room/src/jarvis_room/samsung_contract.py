@@ -14,6 +14,7 @@ ERROR_CODES = frozenset({
     "unavailable", "invalid_response", "redirect_rejected", "tls_error",
     "manual_authorization_required", "confirmation_required", "cancelled",
     "script_not_verified", "audit_unavailable", "operation_failed", "command_outcome_unknown", "state_not_matched",
+    "state_observation_timeout",
 })
 
 

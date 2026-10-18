@@ -1,9 +1,10 @@
 """Estado reportado pelo HA não é confirmação física independente da TV."""
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 
 from .samsung_contract import ERROR_CODES, TV_ENTITY_ID, SamsungLabError, SamsungRequest
+from .samsung_observation import ObservationSummary
 
 STATES = frozenset({"on", "off", "idle", "playing", "paused", "buffering", "standby", "unknown", "unavailable"})
 ON_STATES = frozenset({"on", "idle", "playing", "paused"})
@@ -58,11 +59,14 @@ class SamsungCommandResult:
     after: SamsungReportedState | None = None
     error_code: str | None = None
     audit_complete: bool = True
+    observation: ObservationSummary = field(default_factory=ObservationSummary)
     physical_action_verified: bool = field(default=False, init=False)
 
     def __post_init__(self):
         SamsungRequest(self.action)
         if type(self.audit_complete) is not bool:
+            raise SamsungLabError("invalid_response")
+        if type(self.observation) is not ObservationSummary:
             raise SamsungLabError("invalid_response")
         if not isinstance(self.delivery, str) or self.delivery not in ("not_attempted", "accepted", "rejected", "unknown"):
             raise SamsungLabError("invalid_response")
@@ -97,4 +101,5 @@ class SamsungCommandResult:
             "independent_physical_confirmation": "not_collected",
             "error": self.error_code,
             "audit_complete": self.audit_complete,
+            "observation": {**asdict(self.observation), "message": self.observation.message},
         }

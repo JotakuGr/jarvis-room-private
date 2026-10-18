@@ -49,6 +49,18 @@ class TestSamsungRESTClient(unittest.TestCase):
             self.client(fake, read_enabled=True).send_script(SamsungRequest("turn_on"))
         self.assertEqual(fake.calls, [])
 
+    def test_timeout_get_reduz_orcamento_sem_ampliar_limite_http(self):
+        fake = SamsungHTTP()
+        client = self.client(fake, read_enabled=True)
+        client.get_tv_state(timeout=1)
+        client.get_tv_state(timeout=30)
+        self.assertEqual([timeout for _, timeout in fake.calls], [1, 5])
+        count = len(fake.calls)
+        for timeout in (True, 0, -1, 31, float("nan"), "1"):
+            with self.subTest(timeout=timeout), self.assertRaisesRegex(SamsungLabError, "invalid_configuration"):
+                client.get_tv_state(timeout=timeout)
+        self.assertEqual(len(fake.calls), count)
+
     def test_url_remota_troca_de_porta_e_userinfo_rejeitados(self):
         for url in ("http://192.0.2.1:8123", "https://example.com", "http://127.0.0.1:8123", "http://secret@127.0.0.1:18123", "http://127.0.0.1:18123/"):
             with self.subTest(url=url), self.assertRaisesRegex(SamsungLabError, "target_rejected"):

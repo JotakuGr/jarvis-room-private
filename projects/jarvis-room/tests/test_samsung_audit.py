@@ -17,7 +17,7 @@ class TestSamsungAudit(unittest.TestCase):
 
     def test_evento_minimo_sem_segredos(self):
         event = asdict(self.event())
-        self.assertEqual(set(event), {"request_id", "action", "phase", "reported_state", "error_code", "schema_version", "recorded_at", "physical_action_verified"})
+        self.assertEqual(set(event), {"request_id", "action", "phase", "reported_state", "error_code", "observation", "schema_version", "recorded_at", "physical_action_verified"})
         self.assertFalse(event["physical_action_verified"])
         with self.assertRaises(TypeError):
             self.event(token="not-a-credential")

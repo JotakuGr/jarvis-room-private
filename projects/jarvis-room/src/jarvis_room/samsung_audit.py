@@ -10,9 +10,10 @@ from pathlib import Path
 
 from .samsung_contract import ERROR_CODES, SamsungLabError, SamsungRequest
 from .samsung_credentials import REPOSITORY_ROOT
+from .samsung_observation import ObservationSummary
 from .samsung_state import STATES
 
-PHASES = frozenset({"authorized", "post_attempted", "post_accepted", "post_uncertain", "state_reported", "blocked", "failed"})
+PHASES = frozenset({"authorized", "post_attempted", "post_accepted", "post_uncertain", "state_reported", "observation_finished", "blocked", "failed"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +23,7 @@ class SamsungAuditEvent:
     phase: str
     reported_state: str | None = None
     error_code: str | None = None
+    observation: ObservationSummary | None = None
     schema_version: int = field(default=1, init=False)
     recorded_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat(), init=False)
     physical_action_verified: bool = field(default=False, init=False)
@@ -35,6 +37,10 @@ class SamsungAuditEvent:
         if self.reported_state is not None and (not isinstance(self.reported_state, str) or self.reported_state not in STATES):
             raise SamsungLabError("audit_unavailable")
         if self.error_code is not None and (not isinstance(self.error_code, str) or self.error_code not in ERROR_CODES):
+            raise SamsungLabError("audit_unavailable")
+        if self.observation is not None and type(self.observation) is not ObservationSummary:
+            raise SamsungLabError("audit_unavailable")
+        if self.phase == "observation_finished" and self.observation is None:
             raise SamsungLabError("audit_unavailable")
 
 

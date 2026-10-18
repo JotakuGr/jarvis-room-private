@@ -11,6 +11,7 @@ from .samsung_control import execute_samsung_manual, read_samsung_status
 from .samsung_credentials import load_samsung_token
 from .samsung_inventory import inventory_report, load_samsung_inventory
 from .samsung_manual_policy import READ_OPT_IN, authorize_manual
+from .samsung_observation import ObservationWindow
 from .samsung_rest_client import SamsungRESTClient
 
 
@@ -28,14 +29,18 @@ def main() -> None:
     operations.add_argument("--execute", choices=("turn_on", "turn_off"), help="Teste físico que exige autorização e confirmação interativa")
     parser.add_argument("--token-file", type=Path, help="Arquivo privado 0400/0600 fora do repositório")
     parser.add_argument("--audit-file", type=Path, help="JSONL privado externo, obrigatório para execução")
+    parser.add_argument("--observation-timeout", type=float, default=None, help="Prazo de observação após aceite, de 1 a 30 segundos (padrão: 30)")
     args = parser.parse_args()
     if args.token_file is not None and not (args.read or args.execute):
         parser.error("--token-file exige --read ou --execute")
     if args.audit_file is not None and not args.execute:
         parser.error("--audit-file exige --execute")
+    if args.observation_timeout is not None and not args.execute:
+        parser.error("--observation-timeout exige --execute")
     report = {"mode": "offline", "physical_action_verified": False, "error": None}
     code = 0
     try:
+        observation_window = ObservationWindow(30.0 if args.observation_timeout is None else args.observation_timeout)
         load_samsung_inventory()
         if not (args.read or args.execute):
             report = inventory_report()
@@ -57,7 +62,7 @@ def main() -> None:
             else:
                 with PrivateSamsungAudit(args.audit_file) as audit:
                     client = SamsungRESTClient(token=token, read_enabled=True, commands_enabled=True)
-                    report = execute_samsung_manual(client, SamsungRequest(args.execute), permit, audit).report()
+                    report = execute_samsung_manual(client, SamsungRequest(args.execute), permit, audit, observation_timeout=observation_window.timeout_seconds).report()
                 code = 0 if report["error"] is None and report["reported_target_match"] else 1
     except (SamsungLabError, KeyboardInterrupt) as error:
         report["error"] = error.code if isinstance(error, SamsungLabError) else "cancelled"

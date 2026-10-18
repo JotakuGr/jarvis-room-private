@@ -8,6 +8,19 @@ from jarvis_room.samsung_contract import TV_ENTITY_ID
 FAKE_TOKEN = "samsung-unit-test-not-a-credential"
 
 
+class FakeClock:
+    """Tempo monotônico virtual: cenários de dezenas de segundos sem esperas."""
+
+    def __init__(self):
+        self.seconds = 0.0
+
+    def monotonic(self):
+        return self.seconds
+
+    def sleep(self, seconds):
+        self.seconds += seconds
+
+
 class SamsungHTTP:
     def __init__(self, *, tv_states=("off", "on"), status=200, raw=None, error=None, redirect=None, script_status=200, post_status=200, post_error=None):
         self.tv_states = list(tv_states)

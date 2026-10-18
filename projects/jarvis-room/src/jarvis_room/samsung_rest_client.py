@@ -73,9 +73,12 @@ class SamsungRESTClient:
         self._limit = max_response_bytes
         self._opener = opener
 
-    def _request(self, method: str, path: str, body: dict | None = None):
+    def _request(self, method: str, path: str, body: dict | None = None, *, timeout: float | None = None):
         if not self._read_enabled:
             raise SamsungLabError("disabled")
+        if timeout is not None and (method != "GET" or type(timeout) not in (int, float) or not math.isfinite(timeout) or not 0 < timeout <= 30):
+            raise SamsungLabError("invalid_configuration")
+        request_timeout = self._timeout if timeout is None else min(self._timeout, timeout)
         state_paths = {"/api/states/" + entity for entity in ALLOWED_ENTITIES}
         if method == "GET":
             if path not in state_paths or body is not None:
@@ -101,7 +104,7 @@ class SamsungRESTClient:
                 headers={"Authorization": self._token.authorization_header(),
                          "Accept": "application/json", "Content-Type": "application/json"},
             )
-            with opener.open(request, timeout=self._timeout) as response:
+            with opener.open(request, timeout=request_timeout) as response:
                 if response.geturl() != url:
                     raise SamsungLabError("redirect_rejected")
                 if response.status != 200:
@@ -125,16 +128,16 @@ class SamsungRESTClient:
         except Exception:
             raise SamsungLabError("unavailable") from None
 
-    def _entity(self, entity_id: str) -> dict:
+    def _entity(self, entity_id: str, *, timeout: float | None = None) -> dict:
         if not isinstance(entity_id, str) or entity_id not in ALLOWED_ENTITIES:
             raise SamsungLabError("target_rejected")
-        payload = self._request("GET", "/api/states/" + entity_id)
+        payload = self._request("GET", "/api/states/" + entity_id, timeout=timeout)
         if not isinstance(payload, dict) or payload.get("entity_id") != entity_id or not isinstance(payload.get("state"), str):
             raise SamsungLabError("invalid_response")
         return payload
 
-    def get_tv_state(self) -> dict:
-        return self._entity(TV_ENTITY_ID)
+    def get_tv_state(self, *, timeout: float | None = None) -> dict:
+        return self._entity(TV_ENTITY_ID, timeout=timeout)
 
     def check_script(self, request: SamsungRequest) -> None:
         if not isinstance(request, SamsungRequest):
