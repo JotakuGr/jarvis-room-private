@@ -1,6 +1,6 @@
 # ADR-0004 — Catálogo e orquestração offline da sala
 
-Data: 18/10/2026. Status: implementação offline validada; CI e revisão externa pendentes.
+Data: 18/10/2026. Status: implementação offline e CI aprovados; revisão externa pendente.
 
 ## Base verificada — S6.1
 

@@ -1,7 +1,7 @@
 # Relatório técnico — Sprint 6 — orquestração da Sala Temática
 
 Data: 18/10/2026, America/Bahia.
-Status: implementação offline aprovada localmente; publicação e CI em verificação.
+Status: implementação offline publicada e aprovada localmente e em CI.
 Revisão externa e homologação física coletiva permanecem pendentes.
 
 ## Base e ambiente
@@ -37,8 +37,8 @@ contratos anteriores foram preservados.
 | S6.6 | `room_orchestrator.py`, `room_simulation_fakes.py`, testes | 16 / 565 | Aprovado | `01703185` | Drivers físicos futuros não implementados |
 | S6.7 | `room_responses.py`, `room_session_cli.py`, testes de sessão | 15 / 580 | Aprovado | `0cd8c10d` | Prova física não executada |
 | S6.8 | Isolamento do escopo Samsung, declaração futura por alvo e ação; validações negativas | Compartilha S6.6/S6.7/S6.9 | Aprovado | `01703185`, `0cd8c10d`, `a916339c` | Autorização coletiva real adiada |
-| S6.9 | `test_sprint6_e2e.py`, reforço das validações e erros sanitizados | 17 / 597 | Aprovado | `a916339c` | Revisão externa |
-| S6.10 | Três guias, relatório, README, ADR e filtro do workflow | 0 / 597 | Local aprovado; CI em verificação | Commit documental S6.10 no histórico | CI e decisão humana sobre PR |
+| S6.9 | `test_sprint6_e2e.py`, reforço das validações e erros sanitizados; revisão da categoria legada | 17 / 597 | Aprovado | `a916339c`, `11fb11c2` | Revisão externa |
+| S6.10 | Três guias, relatório, README, ADR e filtro do workflow | 0 / 597 | Local e CI aprovados | `1b559023` + complemento documental de evidência | Decisão humana sobre PR |
 
 Total real: **494 anteriores + 103 novos = 597/597**. Nenhuma alteração nos
 arquivos de testes anteriores, nenhum teste removido e nenhum skip registrado.
@@ -61,6 +61,10 @@ credenciais, auditoria e observação Samsung **não foram modificados**. Gatewa
 read-only, roteador, dispatcher e safe entrypoint também não foram ampliados.
 
 Criados dois JSONs novos, sete módulos de testes e duas fixtures de teste.
+Testes novos: `test_room_device_registry.py`, `test_room_groups.py`,
+`test_room_intent.py`, `test_room_scenes.py`, `test_room_orchestrator.py`,
+`test_room_orchestration_session.py` e `test_sprint6_e2e.py`. Fixtures:
+`room_test_support.py` e `room_simulation_fakes.py`, exclusivamente em `tests/`.
 Documentação nova: ADR-0004, três guias e este relatório. README atualizado;
 workflow recebeu somente a branch Sprint 6 no filtro de push. Demais permissões,
 gatilhos, versões e comando de testes do workflow foram preservados.
@@ -184,6 +188,13 @@ privadas staged. `git diff --check` aprovado.
 Chamadas reais HA GET/POST: **0**. Ações físicas: **0**. Inferências LLM: **0**.
 Credenciais reais HA lidas/criadas: **0**. PR/merge da Sprint 6: **não**.
 
+Na revisão final, foi reforçado o vínculo da categoria dos IDs legados:
+reclassificar `presence_sensor` como áudio com capacidades de ligar/desligar
+é rejeitado, assim como alterar sua lista de capacidades sem reclassificação.
+Apenas a tradução declarada `interactive_display → display` é permitida.
+O cenário adicional foi incluído no teste existente, sem alterar a contagem.
+Regressão padrão e com conexões proibidas foram repetidas: **597/597**.
+
 ## Documentação e CI
 
 - [Catálogo e compatibilidade](../integrations/room-device-catalog.md).
@@ -193,12 +204,34 @@ Credenciais reais HA lidas/criadas: **0**. PR/merge da Sprint 6: **não**.
 - Diagramas Mermaid: arquitetura, fluxo individual/coletivo e falha parcial.
 - Workflow: `JARVIS Room offline unittest`, Python 3.11, `contents: read`;
   execução somente de unittest offline, sem Docker, segredos ou dispositivos.
-- Evidência de publicação e CI será acrescentada após verificar o SHA remoto.
+- Push da implementação e correção concluído na feature; árvore limpa e
+  sincronizada em `11fb11c2fb3e54124b5fa1a6e0cdd450aa291f6a`.
+- [Workflow 39178156636](https://github.com/JotakuGr/jarvis-room-private/actions/runs/39178156636),
+  conferido pela API do GitHub para esse SHA: **completed/success**.
+- Job `unittest-offline`, ID `117825037853`: **completed/success**.
+- Este complemento registra essa evidência já verificada. Seu SHA documental
+  final também terá push, CI e estado Git conferidos na entrega.
+
+Commits da Sprint 6, sem reescrever histórico compartilhado:
+
+1. `f09023bf` — S6.1, base e decisão arquitetural.
+2. `98e6b444` — S6.2, catálogo e compatibilidade.
+3. `bc9cebe8` — S6.3, grupos lógicos.
+4. `a514f776` — S6.4, intenções da sala.
+5. `3160d80e` — S6.5, cenas e planos.
+6. `01703185` — S6.6, orquestrador e simulação.
+7. `0cd8c10d` — S6.7/S6.8, sessão e isolamento de autorização.
+8. `a916339c` — S6.9, E2E e validações.
+9. `1b559023` — S6.10, documentação, diagramas e filtro de CI.
+10. `11fb11c2` — revisão final da categoria legada e cenário negativo.
+
+O complemento documental de evidência segue esses commits no histórico da
+branch; seu SHA e a execução final de CI são informados na entrega.
 
 ## Pendências e prontidão
 
-Implementação offline pronta para revisão local; publicação/CI ainda em validação
-neste registro. A aceitação para hardware coletivo permanece explicitamente adiada:
+Implementação offline pronta para revisão técnica externa, com publicação e CI
+aprovados. A aceitação para hardware coletivo permanece explicitamente adiada:
 
 - Atribuir equipamentos reais aos papéis Jarvis/dashboard sem duplicar Samsung
   ou Hikvision; não presumir equipamento extra pelo número de funções visuais.
