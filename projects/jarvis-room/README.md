@@ -189,7 +189,7 @@ de 356 testes. A nova interface textual ainda não possui homologação física.
   com LLM/provedor. Sem essa flag, o comportamento anterior continua bloqueado.
 - Respostas distinguem reconhecimento, autorização, aceite, estado HA, timeout e
   entrega incerta; flags de verificação permanecem falsas. Nenhum retry de POST.
-- **441/441 testes aprovados**: 356 anteriores e 85 novos. Nenhum acionamento,
+- S5.1–S5.10: **441/441 testes aprovados**: 356 anteriores e 85 novos. Nenhum acionamento,
   acesso real ao HA ou inferência nesta sprint. Isto é texto, não voz.
 
 ```bash
@@ -200,3 +200,41 @@ PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.samsung_text_cli \
 [Guia e diagramas](docs/integrations/samsung-natural-commands.md),
 [ADR-0003](docs/adr/0003-samsung-natural-commands.md) e
 [relatório da Sprint 5](docs/reports/sprint-5-acceptance.md).
+
+### S5.11 — sessão textual contínua
+
+Regressão local: **494/494**, incluindo os 441 anteriores e 53 testes novos.
+Nenhum acesso real ao HA, acionamento físico ou inferência foi executado nesta
+implementação. A nova sessão ainda exige homologação física supervisionada.
+
+Sessão informativa, com catálogo local e controle desabilitado:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.room_session_cli
+```
+
+Para uma futura sessão autorizada de controle, no terminal local interativo:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.room_session_cli \
+  --enable-samsung \
+  --token-file "$HOME/.config/jarvis-room/secrets/ha-samsung-token" \
+  --audit-file "$HOME/.config/jarvis-room/samsung-audit.jsonl" \
+  --observation-timeout 30
+```
+
+Digite `Jarvis, ligue a TV.` ou `Jarvis, desligue a televisão Samsung.`.
+`--enable-samsung` autoriza esses comandos durante a sessão, **sem segunda
+confirmação por ação**. `sair`, EOF ou Ctrl+C encerram a autorização.
+Não há opção de ler comandos de arquivo ou de argumentos. Ambas as sessões
+exigem stdin/stdout TTY. As CLIs antigas mantêm a confirmação por ação e seu
+opt-in ambiental; a nova sessão usa a flag explícita como opt-in próprio.
+
+`--llm` é opcional para perguntas informativas experimentais, com o provedor
+local e a política de memória existentes. Respostas do modelo são apenas
+exibidas como não verificadas, sem ferramentas físicas ou redirecionamento.
+Nenhuma frase de conversa habilita controle. As flags de verificação física
+permanecem falsas; uma resposta de sucesso exige estado correspondente do HA
+dentro do prazo. Texto contínuo não implementa voz nem memória entre inferências.
+
+[Modos, arquitetura e homologação da sessão](docs/integrations/samsung-natural-commands.md#s511--sessão-textual-contínua).

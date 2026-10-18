@@ -1,8 +1,13 @@
 # Relatório técnico — Sprint 5: Samsung por texto
 
 Data: 18/10/2026 (America/Bahia).
-Status: implementação offline e CI aprovados, pronta para revisão; homologação física da nova
-interface pendente. Não é reconhecimento de voz. Nenhum PR/merge automático.
+Status: S5.1–S5.10 validadas offline e em CI; extensão S5.11 validada localmente,
+CI da extensão em verificação. Homologação física das novas interfaces e revisão
+técnica externa pendentes. Não é reconhecimento de voz. Nenhum PR/merge automático.
+
+As seções S5.1–S5.10 abaixo preservam a entrega original de 441 testes. A extensão
+S5.11, suas alterações de autorização e a regressão de 494 testes estão registradas
+no adendo final deste documento.
 
 ## Base, ambiente e revisão S5.1
 
@@ -166,3 +171,129 @@ Checklist para revisão:
 A implementação offline está pronta para revisão; o CI da implementação foi aprovado.
 Homologação física/produção e abertura de PR permanecem pendentes de decisão
 humana. Nenhuma ação física, PR ou merge será executado automaticamente.
+
+## Adendo — S5.11: sessão textual contínua (18/10/2026)
+
+Status: implementação e testes offline aprovados; CI em verificação;
+homologação física específica da sessão e revisão externa pendentes.
+
+### Base e escopo
+
+Início na branch limpa e sincronizada `feature/sprint5-samsung-natural-commands`,
+SHA `cd9f610781cc89811b07d470e7daca535696616d`. Baseline executado novamente:
+**441/441** em Ubuntu WSL, Python 3.11.17. Não houve troca/modificação da main,
+PR ou merge, alteração de scripts HA, token real lido ou acesso à instância real.
+
+Inspecionados roteamento, dispatcher, safe entrypoint, room/chat CLIs, provedores,
+adaptador natural e módulos de contrato, autorização, REST, credenciais,
+auditoria, controle, estado e observação Samsung. A política manual estrita não
+foi substituída por entradas simuladas: criou-se uma capacidade própria de sessão.
+
+### Tarefas, arquivos e evidências
+
+| ID | Entrega / arquivos | Evidência de testes | Resultado | Commit | Pendência |
+| --- | --- | --- | --- | --- | --- |
+| S5.11.1 | `room_session_cli.py`: loop digitado, vários turnos, sair/EOF/Ctrl+C | `test_room_session_cli.py` | Aprovado offline | `977f3ce8` | Homologação supervisionada |
+| S5.11.2 | Flag `--enable-samsung`, TTY e arquivos privados obrigatórios no modo executor | Default bloqueado, entrada não TTY, parâmetros inválidos, startup sem HTTP | Aprovado | `977f3ce8` | Validar operação humana no equipamento |
+| S5.11.3 | `samsung_session_policy.py`, `samsung_authorization.py`, alteração mínima de `samsung_control.py` | 18 testes da política: vínculo, expiração, replay, origem e revogação | Aprovado | `1ea6e6b1` + reforço em `977f3ce8` | Revisão da fronteira local |
+| S5.11.4 | `SamsungSessionControl` em `samsung_natural_control.py`; mesmo controlador REST/auditoria | On/off, um POST por turno, atraso, timeout, entrega incerta | Aprovado simulado | `977f3ce8` | Nenhum teste físico novo |
+| S5.11.5 | Catálogo e provedor local opcional; configuração/memória preservadas; saída nunca redistribuída | Injeção na resposta LLM sem chamada ao controlador; comando não chega ao modelo | Aprovado simulado | `977f3ce8` | Sem inferência real nesta implementação |
+| S5.11.6 | Token/log externos, permissões, allowlists e flags falsas; erro de log encerra sessão | Falha de token, log antes/depois do POST e fechamento, 401/403, redirect | Aprovado | `977f3ce8` | Identidade institucional fora do escopo |
+| S5.11.7 | `test_samsung_session_policy.py`, `test_room_session_cli.py` | 53 novos; regressão padrão e conexões proibidas | 494/494 | `1ea6e6b1`, `977f3ce8` | CI registrado após publicação |
+| S5.11.8 | README, ADR-0003, guia de integração e este adendo | Revisão de documentação e `git diff --check` | Aprovado localmente | Commit documental S5.11 no histórico da branch | Revisão técnica e homologação física |
+
+### Arquitetura e mudança de autorização
+
+O interpretador e o adaptador Samsung da Sprint 5 são reutilizados. A execução
+continua no `execute_samsung_manual` da Sprint 4, com um único POST aos scripts
+fixos e GETs de observação por até 30 s. Nenhuma alteração no cliente REST,
+cliente read-only, gateway, scripts, entidade, inventário ou provedor existente.
+São três novos módulos de produção, dois módulos anteriores modificados, dois
+arquivos de testes e quatro documentos atualizados.
+
+`SamsungTextSession` lê somente o stdin TTY original; cria `OperatorTurn` imutável.
+O turno ativo e a intenção determinística vinculam `SessionPermit`, de uso único,
+expirando em 60 s e revogado ao terminar o turno/sessão. PID/thread e TTY são
+revalidados no consumo; perda/troca de terminal revoga a sessão. O controlador
+aceita apenas os tipos exatos de permissão manual ou de sessão. O método antigo
+de consumo manual continua estrito e recusando uma permissão de sessão.
+
+As CLIs antigas mantêm opt-in ambiental e confirmação exata por ação. A nova
+CLI usa exclusivamente `--enable-samsung` como escolha inicial de autorização,
+sem repetir a confirmação; nenhuma mensagem pode ativá-la. Token e JSONL são
+validados antes do loop executor e reutilizados até fechar o contexto. Inicializar
+e sair não realiza rede. Em falha de auditoria não se aceita outro comando.
+
+IA é opcional com `--llm`. O provedor local é selecionado pela configuração
+restritiva existente; a política de memória e `tools=[]` permanecem. Não recebe
+sessão, cliente, permissões ou auditoria. Respostas são apenas exibidas como não
+verificadas, nunca interpretadas como comando. Perguntas cadastradas continuam
+sem inferência. Não há histórico conversacional persistido ou voz implementada.
+
+### Testes e resultados reais
+
+- Baseline S5.1–S5.10: **441/441** novamente aprovado.
+- Política de sessão: **18** novos testes.
+- CLI, segurança e E2E de sessão: **35** novos testes.
+- Regressão completa: **494/494**, zero falhas/erros/skips.
+- Regressão com `socket.connect`, `connect_ex` e `create_connection` proibidos:
+  **494/494**, após descoberta dos testes.
+- Integrações novas proíbem também criar socket, usam REST fake e relógio virtual.
+- Identidade, tentativa de ligar bloqueada e `sair` exercitados em um terminal
+  informativo real, sem `--enable-samsung`, sem `--llm` e sem credenciais.
+- Nenhuma confirmação repetida: teste on/off usa somente três leituras do
+  operador (ligar, desligar, sair), ambiente sem opt-in manual e falha se tentar
+  chamar `authorize_manual`. Exatamente dois POSTs falsos, um por ação, dois IDs
+  correlacionados, sem eventos duplicados.
+- Estado tardio `on` após 4 s simulados encerra observação; timeout de 6 s registra
+  três consultas e não afirma falha física; entrega incerta faz só um POST falso.
+- Ctrl+C durante POST é tratado como entrega incerta, sem retry, e encerra sessão.
+- `action_verified=false` nos objetos de resposta Samsung; estado e auditoria
+  mantêm `physical_action_verified=false`. Observação visual é evidência separada.
+
+Comando reproduzível:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m unittest discover \
+  -s projects/jarvis-room/tests -p 'test_*.py' -v
+git diff --check
+```
+
+Logs locais não versionados: `/tmp/jarvis-s511-baseline.log`,
+`/tmp/jarvis-s511-tests.log`, `/tmp/jarvis-s511-network-blocked.log`.
+Chamadas HA reais, execuções físicas e inferências LLM nesta extensão: **0**.
+Auditorias e tokens reais não foram lidos, criados ou versionados.
+
+### CI e publicação S5.11
+
+Workflow existente já cobre esta branch. Nenhuma alteração de gatilho, permissões
+ou segredos foi necessária: Python 3.11, `contents: read`, somente unittest offline.
+Commits da implementação: `1ea6e6b1` e `977f3ce8`. Evidência remota será registrada
+depois do push, distinguindo o resultado local do GitHub Actions.
+
+### Homologação e riscos pendentes
+
+Comandos reais de inicialização, diferença entre os três modos, diagrama da
+sessão e procedimento supervisionado estão no [guia](../integrations/samsung-natural-commands.md#s511--sessão-textual-contínua).
+
+- [x] 441 testes preservados e 53 novos aprovados offline.
+- [x] Default desabilitado; opção explícita, TTY e arquivos privados.
+- [x] Sem confirmação repetida, replay ou POST automático adicional.
+- [x] Sem controle por resposta de LLM, gateway genérico, read-only ou voz.
+- [x] Revogação em saída normal, EOF, Ctrl+C, troca/perda de terminal e erro.
+- [x] Documentação da mudança de autorização e riscos.
+- [ ] CI S5.11 confirmado com SHA e URL.
+- [ ] Revisão técnica externa e decisão humana sobre PR.
+- [ ] Homologação física específica da sessão textual habilitada.
+
+Após opt-in, cada comando exato tem efeito operacional sem uma nova pergunta.
+O operador deve guardar o terminal e não colar instruções de origem externa.
+TTY não autentica identidade nem distingue colagem de digitação; código Python
+malicioso no mesmo processo está fora desta fronteira. Não há API de ingestão
+de arquivos/logs, microfone ou ferramentas físicas. O token HA continua amplo,
+e scripts podem mudar fora do Git. Estado HA não prova causalidade ou observação
+física independente. Nenhuma ação real foi executada para fechar esse requisito.
+
+A extensão está implementada e validada offline. Não declarar homologação física
+nem encerramento definitivo da Sprint 5 antes da revisão e prova supervisionada.
+Nenhum PR será aberto ou merge realizado automaticamente.

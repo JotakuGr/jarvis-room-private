@@ -9,8 +9,8 @@ O operador pode solicitar uma ação por texto. O interpretador determinístico
 identifica somente uma frase completa cadastrada, gera intenção imutável e
 seleciona a Samsung já permitida. Reconhecimento não equivale a autorização.
 
-Nenhum controlador, cliente HTTP, mecanismo de permissão ou loop de observação
-foi reimplementado. `samsung_natural_control` reutiliza o fluxo da Sprint 4:
+Nas CLIs por ação, nenhum controlador, cliente HTTP, mecanismo de permissão ou
+loop de observação foi reimplementado. `samsung_natural_control` reutiliza a Sprint 4:
 `SamsungRequest`, `authorize_manual`, `load_samsung_token`, `PrivateSamsungAudit`,
 `SamsungRESTClient`, `ObservationWindow` e `execute_samsung_manual`.
 
@@ -164,7 +164,7 @@ flowchart TD
     Observe --> Result[Estado HA, timeout ou observação interrompida]
 ```
 
-## Segurança, auditoria e respostas
+## Segurança, auditoria e respostas nas CLIs por ação
 
 Mantêm-se as exigências da Sprint 4: opt-in ambiental, stdin/stdout TTY, frase
 exata por ação, permissão de uso único de 60 s, token externo 0400/0600 e auditoria
@@ -195,7 +195,7 @@ da Sprint 4, sem duplicação.
 
 ## Validação e limitações
 
-Baseline 356; regressão final **441/441**, incluindo **85 novos testes**. Testes
+S5.1–S5.10: baseline 356; regressão **441/441**, incluindo **85 novos testes**. Testes
 unitários e E2E usam fakes/relógio virtual e sockets proibidos. A suíte inteira
 também passou com operações de conexão de socket bloqueadas. Nenhum teste usa
 credencial real ou instância HA. Resultados/CI: [relatório da Sprint 5](../reports/sprint-5-acceptance.md).
@@ -224,3 +224,114 @@ Microfone, transcrição e TTS exigirão decisão separada: definir como o opera
 autentica intenção e confirma uma ação, separar áudio informativo de autorização,
 e impedir que conteúdo falado pelo próprio assistente seja reprocessado como
 comando. Nenhum componente de voz é instalado ou habilitado nesta sprint.
+
+## S5.11 — sessão textual contínua
+
+Há três modos distintos:
+
+| Interface | Ativação | Autorização | Conversação com IA |
+| --- | --- | --- | --- |
+| `samsung_text_cli --execute` ou `room_chat_cli --samsung-control` | Opt-in ambiental e flag por ação | Frase exata a cada ação; inalterada | Incompatível no ramo manual |
+| `room_session_cli` | Sem flag de controle | Controle desabilitado | Opcional com `--llm` |
+| `room_session_cli --enable-samsung` | Flag explícita ao iniciar | Sessão e permissão única por turno, sem segunda confirmação | Opcional com `--llm`, ramo isolado |
+
+A nova CLI exige terminal interativo para stdin e stdout, inclusive no modo
+informativo. Não recebe mensagens por argumento, arquivo ou log. Para começar
+sem controle e sem IA:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.room_session_cli
+```
+
+Para futura homologação supervisionada, após autorização específica do operador
+e revisão dos scripts, iniciar no terminal Ubuntu com os arquivos privados já
+preparados fora do Git:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.room_session_cli \
+  --enable-samsung \
+  --token-file "$HOME/.config/jarvis-room/secrets/ha-samsung-token" \
+  --audit-file "$HOME/.config/jarvis-room/samsung-audit.jsonl" \
+  --observation-timeout 30
+```
+
+Esse comando de execução não foi usado durante a implementação. Não coloque o
+token literal no terminal. O arquivo do token exige 0400/0600; o JSONL externo
+exige 0600 e é aberto/criado antes do primeiro turno. Caminhos coincidentes,
+links ou arquivos no repositório são recusados pelos loaders existentes.
+Inicializar a sessão e sair não realiza GET nem POST. Falha na preparação
+impede entrar no loop executante. A flag `--enable-samsung` é a autorização
+inicial própria desta CLI: não requer também o opt-in ambiental da CLI antiga.
+Não há prompts `LIGAR SAMSUNG`/`DESLIGAR SAMSUNG` neste modo.
+
+```text
+Você: Jarvis, ligue a TV.
+J.A.R.V.I.S.: O Home Assistant aceitou o comando e informou que a televisão está ligada.
+Você: Jarvis, desligue a TV.
+J.A.R.V.I.S.: O Home Assistant aceitou o comando e informou que a televisão está desligada.
+Você: sair
+J.A.R.V.I.S.: Sessão encerrada.
+```
+
+Exemplo ilustrativo: essas respostas dependem do POST aceito, auditoria completa
+e estado alvo informado dentro de 1–30 s (padrão 30). Aceite sem estado resulta
+em “estado não confirmado dentro do prazo”; entrega incerta não é reenviada.
+Flags `action_verified` e `physical_action_verified` seguem falsas nos objetos
+de resultado/resposta; o diálogo não imprime um JSON por turno. A auditoria
+registra request ID, ação, autorização, tentativa, entrega, estado e métricas,
+sem prompts, respostas do LLM ou token. Uma falha de auditoria encerra o loop.
+
+`sair`, EOF, Ctrl+C e erro fatal encerram a sessão e revogam permissões pendentes.
+Ao ler um novo turno, o anterior deixa de autorizar operações. Cada turno pode
+emitir apenas uma permissão, consumida uma vez, com validade de 60 s; consumo
+confere ação, turno, sessão ativa, PID/thread e TTY originais. Uma perda/troca do
+terminal encerra essa autorização. Não há persistência ou renovação por conversa.
+
+### Conversa informativa opcional
+
+Acrescente `--llm` a qualquer um dos comandos de sessão para perguntas como
+`Explique o que é MQTT`. A configuração local restritiva, a checagem de RAM/swap
+e a ausência de ferramentas do provedor existente permanecem. Identidade,
+monitores, arquitetura e inventário cadastrados usam o caminho rápido sem IA.
+Perguntas experimentais são limitadas aos prefixos informativos existentes.
+Comandos negados, condicionais ou ambíguos não recebem autorização; respostas
+geradas são rotuladas como não verificadas e nunca são reprocessadas como
+entrada. O modelo não recebe objetos de sessão nem de controle.
+
+Não há memória conversacional entre chamadas do provedor: a continuidade é do
+loop do terminal. Microfone, transcrição, TTS e ferramentas físicas do LLM não
+são implementados. Texto colado pelo operador em um TTY não pode ser distinguido
+de digitação: não cole instruções externas no terminal habilitado.
+
+```mermaid
+flowchart TD
+    Operator[Operador no TTY] --> Session[Sessão e turno original]
+    Session --> Parser[Interpretador determinístico]
+    Parser -->|Samsung reconhecida| Enabled{Controle habilitado ao iniciar?}
+    Enabled -->|Não| Denied[Sem envio físico]
+    Enabled -->|Sim| Permit[Permissão única ligada ao turno e à ação]
+    Permit --> Adapter[Adaptador natural existente]
+    Adapter --> Controller[Controlador Sprint 4 e auditoria privada]
+    Controller --> REST[GET de preflight e POST único do script fixo]
+    REST --> Observe[GETs até estado alvo ou prazo]
+    Observe --> Reply[Resposta baseada na evidência HA]
+    Parser -->|Informação| Chat[Catálogo ou provedor opcional]
+    Chat --> Display[Exibir texto; nunca reencaminhar ao controle]
+    Session -->|sair EOF Ctrl+C| Close[Revogar sessão e fechar log]
+```
+
+### Evidências e pendências da sessão
+
+Regressão **494/494**, com **53 novos testes S5.11**: 18 da política e 35 de
+CLI/integração. REST fake, relógio virtual e sockets proibidos; nenhum comando
+real, token real lido ou inferência. Foram exercitados múltiplos turnos, on/off,
+sem confirmação repetida, opt-in/TTY, expiração/replay/revogação, injeção via
+LLM, autenticação, falha de log antes/depois do POST, estado atrasado, timeout,
+entrega incerta, Ctrl+C/EOF e encerramento. Os 441 anteriores foram preservados.
+
+Antes de homologar fisicamente, revisar esta mudança de autorização e os scripts
+reais, preparar observador e log, testar sessão desabilitada e saída normal;
+somente após consentimento específico iniciar sessão habilitada e digitar uma
+ação por vez. Registrar entrega, estado/tempo e observação visual separadamente;
+não declarar confirmação física pelo software. Ao terminar, sair e revisar o
+JSONL. Os testes físicos anteriores da Sprint 4 não homologam esta sessão.
