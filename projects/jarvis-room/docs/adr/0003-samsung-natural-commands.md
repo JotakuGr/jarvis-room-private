@@ -1,6 +1,6 @@
 # ADR-0003 — Linguagem natural determinística e controle manual Samsung
 
-Status: implementação em andamento; homologação física da nova interface pendente.
+Status: implementação offline validada; homologação física da nova interface pendente.
 Data: 18/10/2026.
 
 ## Revisão inicial — S5.1
@@ -51,3 +51,18 @@ Uma resposta HTTP e um estado HA não comprovam execução física independente.
 `action_verified=false` e `physical_action_verified=false` serão preservados.
 Os acionamentos anteriores da Sprint 4 não homologam a nova interface textual.
 Microfone, reconhecimento de voz e TTS permanecem fora desta sprint.
+
+## Implementação e validação
+
+`samsung_text_cli` oferece preview e `--execute`; `room_chat_cli` tem o caminho
+exclusivo `--samsung-control`, sem construir provedor LLM nesse ramo. As duas
+interfaces compartilham interpretador, adaptador, respostas e auditoria existente.
+O parser recusa abreviações e evita eco de valores sensíveis em erros automáticos;
+mensagens explícitas anteriores permanecem compatíveis com os testes existentes.
+
+Regressão: 441/441, incluindo 85 testes novos. O controlador/cliente/permissão da
+Sprint 4 permanecem intactos. Um erro ao fechar a auditoria no adaptador preserva
+o resultado conhecido do controlador. Nenhum comando HA real foi executado.
+
+Diagramas, procedimentos e riscos: [guia](../integrations/samsung-natural-commands.md).
+Evidências e tarefas: [relatório](../reports/sprint-5-acceptance.md).

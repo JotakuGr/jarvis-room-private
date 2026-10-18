@@ -172,3 +172,31 @@ foram observados pelo operador; falta consolidar a homologação e a revisão fi
 [Procedimento de homologação Samsung](docs/integrations/samsung-lab-control.md),
 [decisão arquitetural](docs/adr/0002-samsung-manual-control.md) e
 [relatório de aceitação](docs/reports/sprint-4-acceptance.md).
+
+### Sprint 5 — comandos Samsung por texto, sem LLM na execução
+
+A Sprint 4 foi integrada à `main` pelo PR #13. A Sprint 5 é desenvolvida em
+`feature/sprint5-samsung-natural-commands`, baseada nessa `main`, com baseline
+de 356 testes. A nova interface textual ainda não possui homologação física.
+
+- Oito frases completas cadastradas: ligue/desligue a TV/televisão, com Samsung
+  opcional; prefixo Jarvis, caixa, acentuação e pontuação simples normalizados.
+- Negação, múltiplas ações, condições, horários, entidades/URLs arbitrárias e
+  dispositivos desconhecidos são bloqueados. Nenhuma correspondência parcial.
+- `samsung_text_cli` reconhece offline por padrão, sem token ou rede. `--execute`
+  reutiliza integralmente autorização, token, auditoria e controlador da Sprint 4.
+- `room_chat_cli --samsung-control` seleciona o mesmo fluxo manual e é incompatível
+  com LLM/provedor. Sem essa flag, o comportamento anterior continua bloqueado.
+- Respostas distinguem reconhecimento, autorização, aceite, estado HA, timeout e
+  entrega incerta; flags de verificação permanecem falsas. Nenhum retry de POST.
+- **441/441 testes aprovados**: 356 anteriores e 85 novos. Nenhum acionamento,
+  acesso real ao HA ou inferência nesta sprint. Isto é texto, não voz.
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.samsung_text_cli \
+  "Jarvis, ligue a TV Samsung."
+```
+
+[Guia e diagramas](docs/integrations/samsung-natural-commands.md),
+[ADR-0003](docs/adr/0003-samsung-natural-commands.md) e
+[relatório da Sprint 5](docs/reports/sprint-5-acceptance.md).
