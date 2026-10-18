@@ -14,7 +14,7 @@ from typing import Protocol
 
 from .room_device_registry import DEFAULT_PATH as CATALOG_PATH, RoomDevice, load_room_devices, valid_id
 from .room_intent import RoomIntent, parse_room_intent
-from .room_scenes import DEFAULT_PATH as SCENES_PATH, ExecutionPlan, RoomPlanError, build_room_plan
+from .room_scenes import DEFAULT_PATH as SCENES_PATH, ExecutionPlan, build_room_plan
 
 
 class RoomOrchestrationError(ValueError):
@@ -137,6 +137,7 @@ def run_room_plan(plan: ExecutionPlan, *, backend: RoomSimulationBackend | None 
                 observation = backend.simulate_step(device, step.action)
                 if (type(observation) is not SimulationObservation or observation.source != "simulation"
                     or observation.device_id != step.device_id or observation.action != step.action
+                    or type(observation.state) is not str or observation.state not in ("on", "off", "unknown", "unavailable")
                     or observation.physical_action_verified is not False):
                     raise ValueError()
                 observed = observation.state
@@ -163,8 +164,13 @@ def orchestrate_room_intent(intent: RoomIntent, *, backend: RoomSimulationBacken
     return run_room_plan(plan, backend=backend, catalog_path=catalog_path, scenes_path=scenes_path, clock=clock)
 
 
+class _OfflineParser(argparse.ArgumentParser):
+    def error(self, _message):
+        super().error("Argumentos inválidos; não informe credenciais. Consulte --help.")
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Plano offline da sala; sem opção de execução física", allow_abbrev=False)
+    parser = _OfflineParser(description="Plano offline da sala; sem opção de execução física", allow_abbrev=False)
     parser.add_argument("message", nargs="+")
     args = parser.parse_args()
     try:

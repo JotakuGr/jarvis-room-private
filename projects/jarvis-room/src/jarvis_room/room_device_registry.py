@@ -59,6 +59,8 @@ def _label(value):
 
 def load_room_devices(path: Path = DEFAULT_PATH) -> dict[str, RoomDevice]:
     try:
+        if not isinstance(path, Path):
+            raise ValueError()
         data = load_object(path, ValueError)
         if set(data) != {"schema_version", "devices"} or type(data["schema_version"]) is not int or data["schema_version"] != 1:
             raise ValueError()
@@ -88,6 +90,12 @@ def load_room_devices(path: Path = DEFAULT_PATH) -> dict[str, RoomDevice]:
                 raise ValueError()
             if any(value is not None and not _label(value) for value in (raw["manufacturer"], raw["model"])):
                 raise ValueError()
+            for identifier, manufacturer, model in (
+                ("samsung_lab_tv", "Samsung", "LH32BETBLGGXZD"),
+                ("hikvision_board", "Hikvision", "DS-D5B65RB/D"),
+            ):
+                if (raw["manufacturer"], raw["model"]) == (manufacturer, model) and raw["id"] != identifier:
+                    raise ValueError()
             caps = raw["capabilities"]
             if type(caps) is not list or not caps or any(type(c) is not str or c not in CAPABILITIES for c in caps) or len(set(caps)) != len(caps):
                 raise ValueError()

@@ -76,6 +76,8 @@ def _targets(kind, identifier, devices):
 
 def load_room_scenes(path: Path = DEFAULT_PATH, catalog_path: Path = CATALOG_PATH) -> dict[str, RoomScene]:
     try:
+        if not isinstance(path, Path) or not isinstance(catalog_path, Path):
+            raise ValueError()
         devices = load_room_devices(catalog_path)
         data = load_object(path, ValueError)
         if (set(data) != {"schema_version", "mode", "scenes"} or type(data["schema_version"]) is not int
