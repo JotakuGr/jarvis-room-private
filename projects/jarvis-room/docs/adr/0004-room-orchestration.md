@@ -1,6 +1,6 @@
 # ADR-0004 — Catálogo e orquestração offline da sala
 
-Data: 18/10/2026. Status: implementação incremental; revisão externa pendente.
+Data: 18/10/2026. Status: implementação offline validada; CI e revisão externa pendentes.
 
 ## Base verificada — S6.1
 
@@ -10,7 +10,9 @@ O commit é o merge do PR #14 da Sprint 5 na main; contém
 Não é necessário rebase ou substituir a branch. Baseline executado: 494/494.
 Main não será modificada. A afirmação inicial de que Sprint 5 ainda precisa de
 merge foi superada pela evidência do histórico local; o relatório distinguirá
-essa evidência da confirmação remota.
+essa evidência da confirmação remota. `git ls-remote origin` confirmou depois
+que main e a branch remota da Sprint 6 estavam em `421565ed` antes da publicação.
+A API do GitHub confirmou `merged=true` no PR #14 e o mesmo merge SHA.
 
 Foram inspecionados sessão, interpretador/adaptador/política/controlador Samsung,
 roteador, dispatcher, safe entrypoint, inventário de capacidades, política de
@@ -49,3 +51,17 @@ Planejamento não atesta disponibilidade, potência elétrica, protocolo, estado
 ou confirmação física. Flags `action_verified` e `physical_action_verified`
 permanecem falsas inclusive em simulações bem-sucedidas. Voz fora do escopo.
 Os relatórios finais registrarão contagens reais, CI e pendências de homologação.
+
+## Implementação e validação
+
+Criados catálogo e compatibilidade, resolução de grupos, intenções, planos com
+dependências, orquestrador de simulação e apresentação de resultados. A sessão
+acrescenta somente um ramo offline depois das oito frases Samsung originais.
+Nenhuma modificação na política, controlador, REST, token ou auditoria Samsung,
+gateway, cliente read-only, roteador/dispatcher/safe entrypoint antigos.
+
+Baseline 494 preservado; 103 novos testes; regressão 597/597. A mesma suíte passou
+com conexões reais proibidas; fixtures novas impedem criar sockets. Fake backend
+restrito a tests/, relógio virtual para tempo de simulação. Nenhum HA real,
+comando físico ou inferência nesta implementação. Relatório e CI:
+[aceitação Sprint 6](../reports/sprint-6-acceptance.md).
