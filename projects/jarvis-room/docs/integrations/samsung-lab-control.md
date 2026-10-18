@@ -1,8 +1,9 @@
 # Samsung LH32BETBLGGXZD — procedimento de laboratório supervisionado
 
-Status: código, testes simulados e leitura real validados; homologação física pendente.
-Os comandos de execução abaixo são instruções para uma sessão futura com
-autorização explícita do responsável. Não foram executados nesta implementação.
+Status: leitura real e dois acionamentos autorizados registrados com observação
+visual do operador. Janela revisada validada por simulação; revisão final pendente.
+Os comandos abaixo exigem autorização explícita para cada nova sessão. O ajuste
+da janela não foi testado por novos acionamentos físicos.
 
 ## Inventário e contratos
 
@@ -37,7 +38,7 @@ Operador em terminal → samsung_lab_cli
   → política manual (opt-in, frase, permissão única de 60 s)
   → auditoria privada → samsung_control → samsung_rest_client
   → GET script selecionado / GET TV / revalidação script / POST script
-  → até 3 GETs da TV → resultado sanitizado, confirmação física=false
+  → GETs da TV dentro de até 30 s → métricas, confirmação física=false
 ```
 
 O módulo `samsung_control` não importa LLM, gateway ou cliente read-only.
@@ -76,7 +77,7 @@ Somente após autorizar a leitura real e preparar o arquivo privado:
 ```bash
 JARVIS_SAMSUNG_LAB_READ=1 PYTHONPATH=projects/jarvis-room/src \
 python3.11 -m jarvis_room.samsung_lab_cli --read \
-  --token-file "$HOME/.config/jarvis-room/samsung-ha.token"
+  --token-file "$HOME/.config/jarvis-room/secrets/ha-samsung-token"
 ```
 
 Esse comando consulta a TV e os dois scripts por GET. Não lista entidades nem
@@ -87,13 +88,26 @@ Somente após autorização explícita para cada teste físico:
 ```bash
 JARVIS_SAMSUNG_LAB_CONTROL=1 PYTHONPATH=projects/jarvis-room/src \
 python3.11 -m jarvis_room.samsung_lab_cli --execute turn_on \
-  --token-file "$HOME/.config/jarvis-room/samsung-ha.token" \
-  --audit-file "$HOME/.config/jarvis-room/samsung-audit.jsonl"
+  --token-file "$HOME/.config/jarvis-room/secrets/ha-samsung-token" \
+  --audit-file "$HOME/.config/jarvis-room/samsung-audit.jsonl" \
+  --observation-timeout 30
 ```
 
 Digitar `LIGAR SAMSUNG` no terminal interativo. Para desligar, após autorização
 separada, trocar somente `turn_on` por `turn_off` e digitar `DESLIGAR SAMSUNG`.
 Não existe `--yes`, opt-in de LLM ou execução não interativa.
+
+O prazo padrão e máximo de observação é 30 segundos; `--observation-timeout`
+aceita de 1 a 30 s e somente com `--execute`. A primeira consulta ocorre após
+aceite do POST, seguida por GETs a cada 2 s, sem reenviar o comando. A observação
+termina antecipadamente quando o HA informa o alvo. A biblioteca admite intervalo
+de 0,5 a 5 s para testes/uso controlado; a CLI mantém o padrão de 2 s.
+
+Os timeouts GET diminuem conforme o orçamento restante. Nenhum novo GET começa
+após o prazo e uma resposta recebida tarde não gera `matched`. Timeout de socket
+não impõe um deadline absoluto a toda I/O; overhead de sistema/auditoria pode
+alongar a sessão. O tempo real de observação é registrado, sem contar preflight,
+POST ou a gravação final das métricas.
 
 ## Interpretação e registro da homologação
 
@@ -110,6 +124,19 @@ Não existe `--yes`, opt-in de LLM ou execução não interativa.
   permanecem assim: este software não dispõe de sensor/observador independente.
 - `audit_complete=false`: auditoria falhou; preservar a distinção de envio e
   interromper a sessão. Não alegar que uma ação aceita deixou de ser executada.
+- `observation`: `query_count` inclui todas as tentativas GET posteriores ao
+  aceite, inclusive falhas, e exclui preflight/leitura inicial. `elapsed_seconds`
+  usa relógio monotônico; `timeout_seconds` registra o prazo configurado. O evento
+  de auditoria `observation_finished` contém as mesmas métricas e o resultado.
+- Resultados de observação: `not_started`, `matched`, `timed_out`, `unavailable`
+  ou `error`. Em timeout: **o estado não foi confirmado dentro do prazo**;
+  `command_sent=true` continua preservado se o POST foi aceito. Isso não permite
+  concluir que a TV falhou fisicamente. A compatibilidade bruta de um estado
+  tardio pode aparecer no relatório, mas `observation.outcome` não será `matched`.
+- Falhas transitórias de comunicação permitem novos GETs dentro do prazo. Erros
+  de autenticação, entidade ausente, redirect ou JSON inválido encerram a consulta.
+  Cancelamento não apaga um aceite anterior. POST incerto fica `not_started`,
+  sem observação automática ou reenvio.
 - Código de saída zero indica caminho técnico aceito e estado HA compatível,
   nunca homologação física. Códigos 1/2 representam falha/bloqueio/argumentos.
 
@@ -128,3 +155,17 @@ Parar em 401/403, 404 de script, redirect, falha TLS, resposta inválida, ausên
 de auditoria, resultado incerto, dispositivo diferente ou efeito inesperado.
 Se houver divergência física, não reenviar para tentar obter um relatório verde.
 O gateway original continua recusando `media_player.*`.
+
+## Evidências da sessão de 18/10/2026
+
+Os dois scripts tinham uma ação cada, com os parâmetros esperados. O ID
+operacional de ligar está associado à chave persistida `script_jarvis_ligar_samsung`;
+o campo extra `alias` é apenas rótulo. O arquivo de automações configurado estava
+vazio, sem pacotes configurados ou referências à Samsung nos outros scripts.
+Essa inspeção dos arquivos persistidos não certifica integrações externas opacas.
+
+Ligar: POST aceito; a janela antiga observou três `off` em 4,068611 s. Depois,
+um GET reportou `on`, e o operador confirmou visualmente que a TV ligou.
+Desligar: POST aceito; três leituras `on`, `on`, `off` em 4,029298 s, com
+confirmação visual do operador. Não houve reenvio: dois POSTs aceitos no total.
+As observações humanas permanecem separadas de `physical_action_verified=false`.

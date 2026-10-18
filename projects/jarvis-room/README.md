@@ -144,12 +144,12 @@ Detalhes: [relatório da Sprint 3](docs/reports/sprint-3-acceptance.md),
 [checklist Hikvision](docs/integrations/hikvision-lab-checklist.md) e
 [prontidão WLED](docs/integrations/wled-zoning-readiness.md).
 
-### Sprint 4 — Samsung em laboratório físico, aguardando homologação
+### Sprint 4 — Samsung em laboratório físico, aguardando revisão final
 
 Implementação separada para a Samsung **LH32BETBLGGXZD**, na branch
 `feature/sprint4-samsung-ha-control`, derivada da `main` após o merge da Sprint 3
-(PR #12). A Sprint 4 **não está encerrada**: depende de homologação física
-explicitamente autorizada e revisão final.
+(PR #12). A Sprint 4 **não está encerrada**: os dois acionamentos autorizados
+foram observados pelo operador; falta consolidar a homologação e a revisão final.
 
 - Inventário exclusivo `config/samsung_lab.json`; não altera o catálogo planejado
   nem os helpers virtuais das Sprints 2/3.
@@ -161,8 +161,13 @@ explicitamente autorizada e revisão final.
   read-only da Sprint 3 permanecem intactos.
 - Estado reportado pelo HA, comando aceito e confirmação física são distintos;
   `physical_action_verified` permanece falso.
-- **336/336 testes locais**: 261 anteriores preservados e 75 novos simulados.
-  Nenhuma chamada à instância HA/TV ou inferência foi executada nesta implementação.
+- Observação após aceite: prazo configurável de 1 a 30 s, GETs periódicos sem
+  reenvio do POST, encerramento antecipado e métricas no resultado/auditoria.
+  Timeout significa estado não confirmado no prazo; confirmação física segue falsa.
+- **356/356 testes locais**: 261 anteriores preservados e 95 novos simulados.
+  A janela revisada recebeu 20 testes adicionais, sem novos acionamentos reais.
+  A sessão anterior teve dois POSTs autorizados, com observação visual do operador
+  para ligar e desligar; nenhuma inferência foi executada.
 
 [Procedimento de homologação Samsung](docs/integrations/samsung-lab-control.md),
 [decisão arquitetural](docs/adr/0002-samsung-manual-control.md) e

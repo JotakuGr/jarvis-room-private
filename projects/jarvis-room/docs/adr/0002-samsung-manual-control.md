@@ -1,6 +1,7 @@
 # ADR-0002 — Controle Samsung exclusivo de laboratório e operador
 
-Status: implementação e leitura real validadas; aceitação física e revisão final pendentes.
+Status: implementação, leitura real e acionamentos autorizados registrados;
+janela revisada validada por simulação; aceitação consolidada e revisão final pendentes.
 Data: 18/10/2026. Complementa a ADR-0001 sem liberar ferramentas ao LLM.
 
 ## Contexto e decisão
@@ -61,9 +62,22 @@ auditoria após aceite preserva `command_sent=true` e expõe a falha separadamen
 Não tentar desfazer ou repetir automaticamente uma operação incerta.
 
 GETs limitados aos três IDs; timeout de I/O padrão 5 s (máximo 8 s), JSON até
-32 KiB (máximo 64 KiB), até três leituras posteriores, intervalos de 2 s. Timeout
-de socket não é prazo absoluto de toda a sessão; expiração da permissão evita
-iniciar outra execução com autorização antiga, mas não cancela POST já enviado.
+32 KiB (máximo 64 KiB). Após aceite, observar por prazo monotônico configurável
+de 1 a 30 s (padrão 30), com GET imediato e intervalos de 2 s. Cada GET recebe
+timeout limitado ao menor valor entre seu limite HTTP e o orçamento restante.
+Encerrar assim que o HA informar o alvo dentro do prazo; nunca reenviar o POST.
+Resposta tardia não produz resultado `matched`. Timeout de socket e gravação de
+auditoria não são prazo absoluto de toda a sessão; uma chamada em curso pode
+exceder o orçamento, e sua duração real é registrada. O prazo não inclui POST
+ou preflight. Expiração da permissão não cancela um POST já enviado.
+
+O resultado e o evento `observation_finished` registram quantidade de tentativas
+GET, tempo monotônico, prazo e resultado. Campos novos são aditivos; registros
+anteriores sem essas métricas continuam históricos. `state_observation_timeout`
+significa que o estado não foi confirmado dentro do prazo, sem inferir falha
+física. Indisponibilidade transitória permite novos GETs dentro do orçamento;
+401/403, 404, redirect e JSON inválido interrompem a observação. Cancelamento
+preserva o aceite já recebido. Um POST incerto não inicia polling automático.
 
 Auditoria JSONL externa 0600, append e fsync, sem texto livre ou credenciais.
 Falta de auditoria anterior à tentativa bloqueia o POST. Eventos não são
@@ -76,5 +90,7 @@ institucional, RBAC ou defesa contra Python malicioso executado pelo mesmo
 usuário. Permissão não pode ser fornecida por texto/modelo ou JSON. Scripts HA
 podem ser alterados fora deste repositório: revisar conteúdo antes de cada prova.
 
-Homologação física explicitamente autorizada, revisão técnica final e PR/CI
-são condições de encerramento da Sprint 4. Nenhum teste físico nesta implementação.
+Dois acionamentos foram autorizados e observados visualmente pelo operador em
+18/10/2026, com evidências no relatório. A nova janela foi validada somente por
+simulação, sem repetir esses acionamentos. Aceitação consolidada, revisão técnica
+final e PR/CI são condições de encerramento da Sprint 4.
