@@ -45,6 +45,7 @@ class SamsungTextSession:
             or sys.stdin is not self._stdin or sys.stdout is not self._stdout
             or not self._stdin.isatty() or not self._stdout.isatty()
         ):
+            self.close()
             raise SamsungLabError("confirmation_required")
 
     def read_turn(self) -> OperatorTurn:
@@ -56,7 +57,7 @@ class SamsungTextSession:
         self._turn = OperatorTurn(text, issuer=_ISSUER)
         return self._turn
 
-    def authorize(self, turn: OperatorTurn, intent: SamsungNaturalIntent):
+    def authorize(self, turn: OperatorTurn, intent: SamsungNaturalIntent) -> "SessionPermit":
         self._validate_terminal()
         if (
             not self._enabled or type(turn) is not OperatorTurn

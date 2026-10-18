@@ -131,6 +131,8 @@ class TestSamsungSessionPolicy(unittest.TestCase):
             with patch("sys.stdin.isatty", return_value=False):
                 with self.assertRaises(SamsungLabError):
                     consume_control_permit(permit, SamsungRequest("turn_on"))
+            with self.assertRaises(SamsungLabError):
+                consume_control_permit(permit, SamsungRequest("turn_on"))
 
     def test_troca_de_entrada_recusada(self):
         with NaturalEnvironment(), SamsungTextSession(enable_samsung=True) as session:
