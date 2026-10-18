@@ -65,10 +65,10 @@ A fundação da Sprint 1 foi integrada à `main` pelo PR #10.
 O repositório Git é a subpasta `openjarvis` do workspace `jarvis-room`.
 As customizações permanecem em `projects/jarvis-room/`.
 
-O desenvolvimento da Sprint 2 ocorre em
-`feature/sprint2-home-assistant-offline`, criada a partir da `main` atualizada.
-A branch deve passar por revisão técnica e PR antes de ser integrada à `main`.
-Não haverá merge automático nem início da Sprint 3 antes dessa revisão.
+A Sprint 2 foi integrada à `main` pelo PR #11, incluindo a correção do vínculo
+sintético. A Sprint 3 é desenvolvida em `feature/sprint3-ha-laboratorio-readonly`,
+a partir dessa `main`. Não haverá merge automático nem início da Sprint 4
+antes de revisão externa, PR, validação de CI e merge da Sprint 3.
 
 ### Sprint 2 — planejamento e simulações offline
 
@@ -106,3 +106,40 @@ Detalhes: [homologação da Sprint 2](docs/reports/sprint-2-acceptance.md),
 [contrato Home Assistant](docs/integrations/home-assistant-offline.md),
 [plano Hikvision](docs/integrations/hikvision-ds-d5b65rb-d.md) e
 [pré-requisitos elétricos WLED](docs/integrations/wled-electrical-prerequisites.md).
+
+### Sprint 3 — laboratório read-only, offline por padrão
+
+Foram aprovados **261 testes locais**: os 197 anteriores e 64 novos testes.
+
+- Manifesto restrito e Compose de laboratório com porta publicada somente em
+  `127.0.0.1:18123`, volume nomeado, bridge e sem privilégios.
+- Cliente GET desabilitado por padrão, destino fixo, sem proxies ou redirects,
+  com timeout e tamanho de resposta limitados. Nenhum POST/serviço implementado.
+- Helper previsto: `input_boolean.jarvis_lab_light`, diferente de `light.sala`.
+  Sua criação e ID efetivo ainda não foram confirmados em uma instância real.
+- `ha_lab_cli` independente: offline sem token. Para leitura opcional, exigir
+  `--read-lab`, `JARVIS_HA_LAB_READ=1` e token obtido por entrada oculta ou
+  arquivo privado fora do repositório. Nunca passar token em comando ou CI.
+- Estado informativo e sanitizado, sempre `physical_action_verified=false`.
+  Nenhuma conexão ao LLM ou ao gateway de controle físico.
+- Checklists Hikvision e WLED mantêm protocolo, autorização e dimensionamento
+  elétrico como não comprovados, sem habilitar equipamentos.
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.ha_lab_cli
+docker compose -f projects/jarvis-room/lab/home-assistant/compose.yaml config
+```
+
+O Compose foi validado, mas a subida foi adiada por compatibilidade operacional
+do Docker Desktop. Não houve onboarding, token real, helper criado ou GET real
+ao HA. A tag `stable` ainda não foi baixada; versão/digest devem ser registrados
+quando o laboratório for efetivamente homologado.
+
+Loopback não garante isolamento total de rede. O token HA não é
+intrinsecamente read-only; a restrição é do cliente. Preservar o volume com
+`down` sem `-v` e criar backup privado antes de atualizações.
+
+Detalhes: [relatório da Sprint 3](docs/reports/sprint-3-acceptance.md),
+[fronteiras do laboratório](docs/integrations/ha-lab-architecture.md),
+[checklist Hikvision](docs/integrations/hikvision-lab-checklist.md) e
+[prontidão WLED](docs/integrations/wled-zoning-readiness.md).

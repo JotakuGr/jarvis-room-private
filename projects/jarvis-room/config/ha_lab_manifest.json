@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "mode": "isolated_lab",
+  "base_url": "http://127.0.0.1:18123",
+  "physical_control_enabled": false,
+  "real_devices_allowed": false,
+  "read_client_enabled_by_default": false,
+  "container_privileged": false,
+  "network_mode": "bridge"
+}

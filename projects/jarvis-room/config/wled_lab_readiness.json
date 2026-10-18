@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "status": "planned",
+  "premises": {
+    "led_type": "WS2815",
+    "voltage_nominal_v": 12,
+    "length_m": 100,
+    "leds_per_meter": 60,
+    "declared_led_count": 6000,
+    "controller_family": "ESP32",
+    "firmware": "WLED"
+  },
+  "controller_connected": false,
+  "power_design_verified": false,
+  "physical_control_enabled": false,
+  "zones_count": null,
+  "measurements": {
+    "power_watts_per_meter": null,
+    "current_per_led_amps": null,
+    "strip_batch": null,
+    "segment_lengths_m": null,
+    "power_supply_locations": null,
+    "cable_sections_mm2": null,
+    "circuit_protection": null,
+    "fuses": null,
+    "power_injection_points": null,
+    "voltage_drop": null,
+    "ground_reference": null,
+    "controller_count": null,
+    "refresh_rate_hz": null,
+    "total_power_watts": null,
+    "power_supply_count": null
+  }
+}
