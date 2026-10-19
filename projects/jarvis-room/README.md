@@ -67,8 +67,8 @@ As customizações permanecem em `projects/jarvis-room/`.
 
 A Sprint 2 foi integrada à `main` pelo PR #11, incluindo a correção do vínculo
 sintético. As seções abaixo registram marcos históricos de cada sprint.
-Estado atual: Sprint 5.11 integrada à `main` pelo PR #14 (`421565ed`);
-Sprint 6 em `feature/sprint6-room-orchestration`, sem PR ou merge automático.
+Estado atual: Sprint 6 integrada à `main` pelo PR #15 (`9ee93e94`);
+Sprint 7 em `feature/sprint7-voice-interaction`, sem PR ou merge automático.
 O catálogo e os planos novos não autorizam execução física coletiva.
 
 ### Sprint 2 — planejamento e simulações offline
@@ -280,3 +280,56 @@ fora do escopo. As flags de confirmação física permanecem falsas.
 [cenas e dependências](docs/integrations/room-presentation-scenes.md),
 [ADR-0004](docs/adr/0004-room-orchestration.md) e
 [relatório Sprint 6](docs/reports/sprint-6-acceptance.md).
+
+### Sprint 7 — voz local, planejamento físico offline
+
+- CLI `room_voice_cli.py`, estados tipados e janela com múltiplos turnos.
+- Enter inicia a escuta; openWakeWord/ONNX CPU é opcional, com fallback manual.
+  O modelo público detecta “hey Jarvis”; “Jarvis” isolado em português ainda
+  depende de avaliação e possivelmente de modelo acústico próprio.
+- Faster-Whisper CPU/int8/`pt`, com tiny/base locais e avaliador de WAVs.
+- Kokoro CPU com vozes brasileiras `pm_santa`, `pm_alex` e `pf_dora`, velocidade,
+  volume e saída configuráveis. Saída textual se o TTS estiver indisponível.
+- Half-duplex: microfone/detector fechados durante TTS, buffers descartados,
+  cooldown e rejeição suplementar de possível eco.
+- Voz de terceiros e wake word não autenticam ninguém. Toda fala operacional,
+  inclusive Samsung, usa **somente preview S6**, sem `OperatorTurn`, autorização
+  de terminal ou cliente físico. Respostas do LLM não voltam ao parser.
+- Conversa informativa opcional pelo adaptador local existente, sem ferramentas,
+  com memória volátil limitada. Configuração própria, Ollama em localhost.
+- **714/714 testes offline**: 597 anteriores + 117 novos. Hardware, rede,
+  subprocessos e modelos reais bloqueados na suíte inteira.
+- Diagnóstico local: WSLg presente, mas dependências de voz indisponíveis.
+  Microfone/alto-falantes, acurácia tiny/base e naturalidade TTS ainda não
+  homologados. Não houve captura, síntese, inferência ou ação física real.
+
+Diagnóstico sem captura nem mudanças no sistema:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli --diagnose
+```
+
+Após instalar dependências e preparar modelos explicitamente:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli \
+  --stt-model-dir "$HOME/.local/share/jarvis-room/models/whisper-tiny" \
+  --tts-model-dir "$HOME/.local/share/jarvis-room/models/kokoro" \
+  --voice pm_santa --speed 1.0 --volume 0.7
+```
+
+Pressione Enter e aguarde `Microfone pronto. Pode falar.`. Fale o pedido,
+faça uma pausa e continue sem repetir o vocativo dentro da janela ativa.
+`sair`, EOF ou Ctrl+C encerram. `--wake-model-dir` habilita o detector
+experimental; `--llm` habilita somente perguntas informativas pelo Ollama local.
+
+Regressão completa da Sala Temática, sem dependências de áudio:
+
+```bash
+python3.11 projects/jarvis-room/scripts/run_offline_tests.py
+git diff --check
+```
+
+[Instalação, diagnóstico e homologação](docs/integrations/voice-interaction.md),
+[ADR-0005](docs/adr/0005-local-voice-session.md) e
+[relatório Sprint 7](docs/reports/sprint-7-acceptance.md).

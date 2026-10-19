@@ -32,6 +32,17 @@
 >
 > **[Roadmap](https://open-jarvis.github.io/OpenJarvis/development/roadmap/)**
 
+
+## J.A.R.V.I.S. — Sala Temática
+
+Customizações locais em [projects/jarvis-room](projects/jarvis-room/README.md).
+A Sprint 7 adiciona sessão de voz local, ativação manual, detector acústico
+experimental e comandos físicos restritos a planejamento offline.
+[Instalação e diagnóstico](projects/jarvis-room/docs/integrations/voice-interaction.md)
+e [relatório de validação](projects/jarvis-room/docs/reports/sprint-7-acceptance.md).
+A homologação com microfone/alto-falantes e qualidade de português é separada
+dos testes automatizados.
+
 ## Why OpenJarvis?
 
 Personal AI agents are exploding in popularity, but nearly all of them still route intelligence through cloud APIs. Your "personal" AI continues to depend on someone else's server. At the same time, our [Intelligence Per Watt](https://www.intelligence-per-watt.ai/) research showed that local language models already handle 88.7% of single-turn chat and reasoning queries, with intelligence efficiency improving 5.3× from 2023 to 2025. The models and hardware are increasingly ready. What has been missing is the software stack to make local-first personal AI practical.
