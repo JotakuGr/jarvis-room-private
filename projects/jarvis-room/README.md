@@ -66,9 +66,10 @@ O repositório Git é a subpasta `openjarvis` do workspace `jarvis-room`.
 As customizações permanecem em `projects/jarvis-room/`.
 
 A Sprint 2 foi integrada à `main` pelo PR #11, incluindo a correção do vínculo
-sintético. A Sprint 3 é desenvolvida em `feature/sprint3-ha-laboratorio-readonly`,
-a partir dessa `main`. Não haverá merge automático nem início da Sprint 4
-antes de revisão externa, PR, validação de CI e merge da Sprint 3.
+sintético. As seções abaixo registram marcos históricos de cada sprint.
+Estado atual: Sprint 5.11 integrada à `main` pelo PR #14 (`421565ed`);
+Sprint 6 em `feature/sprint6-room-orchestration`, sem PR ou merge automático.
+O catálogo e os planos novos não autorizam execução física coletiva.
 
 ### Sprint 2 — planejamento e simulações offline
 
@@ -238,3 +239,44 @@ permanecem falsas; uma resposta de sucesso exige estado correspondente do HA
 dentro do prazo. Texto contínuo não implementa voz nem memória entre inferências.
 
 [Modos, arquitetura e homologação da sessão](docs/integrations/samsung-natural-commands.md#s511--sessão-textual-contínua).
+
+### Sprint 6 — catálogo, grupos e cenas offline
+
+- Catálogo canônico com nove registros e vínculo explícito dos seis IDs legados.
+- TVs, lousa e telas pertencem a **monitores**. Não existe grupo separado de TVs.
+  “TV Samsung”, “televisão Samsung” e “monitor Samsung” identificam o mesmo ID.
+- Interface Jarvis e dashboard são papéis de exibição planejados, sem comprovar
+  duas telas físicas adicionais. O placeholder anterior foi reaproveitado.
+- Grupos `monitores`, `leds` e `audio`, resultados por ID e pendências explícitas.
+- Apresentação: LEDs → monitores → áudio. Encerramento: áudio → monitores → LEDs.
+  Computador host, sessão e serviços de segurança não são alvos.
+- Planos tipados antes de execução, deduplicação, detecção de ciclos/dependências
+  inválidas, falha parcial simulada e nenhum retry/rollback automático.
+- Novos comandos ficam em preview, mesmo com `--enable-samsung`. As oito frases
+  individuais da Samsung S5.11 preservam seu caminho autorizado; o novo alias
+  “monitor Samsung” identifica a mesma tela, mas permanece offline nesta rota.
+- **597/597 testes locais aprovados**: 494 anteriores + 103 novos. Nenhum acesso
+  real ao HA, ação física ou inferência. Fake backend exclusivamente em testes.
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.room_session_cli
+```
+
+Na sessão: `Jarvis, ligue os monitores.`, `Jarvis, ativar modo apresentação.`,
+`Desligue os LEDs.`, `Quais são os grupos da sala?`, `Liste os dispositivos da sala`
+e `sair`. Para um plano JSON sem TTY/credenciais:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src python3.11 -m jarvis_room.room_orchestrator \
+  'Jarvis, encerrar apresentação.'
+```
+
+Samsung mantém integração de laboratório existente; Hikvision, WS2815/WLED,
+áudio e slots não recebem drivers físicos fictícios. Voz/microfone continuam
+fora do escopo. As flags de confirmação física permanecem falsas.
+
+[Catálogo](docs/integrations/room-device-catalog.md),
+[grupos e comandos](docs/integrations/room-groups.md),
+[cenas e dependências](docs/integrations/room-presentation-scenes.md),
+[ADR-0004](docs/adr/0004-room-orchestration.md) e
+[relatório Sprint 6](docs/reports/sprint-6-acceptance.md).

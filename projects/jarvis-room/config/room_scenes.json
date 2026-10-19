@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "mode": "offline",
+  "scenes": [
+    {
+      "id": "modo_apresentacao",
+      "operation": "activate",
+      "steps": [
+        {"id":"leds_on","target_kind":"group","target_id":"leds","action":"turn_on","depends_on":[]},
+        {"id":"monitors_on","target_kind":"group","target_id":"monitores","action":"turn_on","depends_on":["leds_on"]},
+        {"id":"audio_on","target_kind":"group","target_id":"audio","action":"turn_on","depends_on":["monitors_on"]}
+      ]
+    },
+    {
+      "id": "encerrar_apresentacao",
+      "operation": "deactivate",
+      "steps": [
+        {"id":"audio_off","target_kind":"group","target_id":"audio","action":"turn_off","depends_on":[]},
+        {"id":"monitors_off","target_kind":"group","target_id":"monitores","action":"turn_off","depends_on":["audio_off"]},
+        {"id":"leds_off","target_kind":"group","target_id":"leds","action":"turn_off","depends_on":["monitors_off"]}
+      ]
+    }
+  ]
+}

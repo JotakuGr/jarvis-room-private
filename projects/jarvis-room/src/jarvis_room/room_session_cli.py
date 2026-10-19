@@ -7,6 +7,7 @@ from pathlib import Path
 from .command_router import normalize, route_message
 from .experimental_chat import answer_informational_question
 from .response_dispatcher import dispatch_message
+from .room_responses import respond_to_room_operator
 from .safe_entrypoint import ALLOWED_CHAT, CAPABILITY_STATUS_QUERY
 from .samsung_contract import SamsungLabError
 from .samsung_natural_control import SamsungSessionControl
@@ -47,6 +48,7 @@ def run_session(*, enable_samsung=False, token_file=None, audit_file=None,
                 "Controle Samsung habilitado nesta sessão; sair encerra a autorização."
                 if enable_samsung else "Controle físico desabilitado."
             ))
+            print("J.A.R.V.I.S.: Grupos, cenas e novos comandos da sala geram somente planos offline.")
             while True:
                 turn = session.read_turn()
                 if turn.text.strip().casefold() == "sair":
@@ -71,7 +73,11 @@ def run_session(*, enable_samsung=False, token_file=None, audit_file=None,
                                 break
                             continue
                     else:
-                        reply = _informational_reply(turn.text, chat)
+                        # A rota S5.11 acima mantém suas oito frases/permissões.
+                        # Nenhum cliente ou autorização entra no caminho novo.
+                        reply = respond_to_room_operator(turn.text)
+                        if reply is None:
+                            reply = _informational_reply(turn.text, chat)
                     print("J.A.R.V.I.S.: " + reply.text)
                 finally:
                     session.finish_turn()
