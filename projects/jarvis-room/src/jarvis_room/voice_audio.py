@@ -130,6 +130,7 @@ class SoundDeviceMicrophone:
             raise ValueError("invalid_capture_timeout")
         frames: list[bytes] = []
         silence = speech = 0
+        started = False
         max_frames = max(1, int(timeout * RATE / CHUNK))
         with self.frames(timeout=timeout, cancel=cancel) as source:
             for data in source:
@@ -137,17 +138,20 @@ class SoundDeviceMicrophone:
                 frames.append(data)
                 if _rms(data) > self.threshold:
                     speech += 1
+                    started = started or speech >= 3
                     silence = 0
                 else:
+                    if not started:
+                        speech = 0
                     silence += 1
-                if not speech and len(frames) * CHUNK / RATE >= self.startup_seconds:
+                if not started and len(frames) * CHUNK / RATE >= self.startup_seconds:
                     return b""
-                if speech >= 3 and silence * CHUNK / RATE >= self.silence_seconds:
+                if started and silence * CHUNK / RATE >= self.silence_seconds:
                     return _frames_to_wav(frames, RATE)
                 if len(frames) >= max_frames:
                     break
         check_cancel(cancel)
-        if speech < 3:
+        if not started:
             return b""  # silêncio/impulso curto não é enviado ao Whisper
         raise VoiceError("capture_limit")  # não interpretar frase cortada
 

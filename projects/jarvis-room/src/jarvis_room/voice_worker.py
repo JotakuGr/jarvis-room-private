@@ -149,6 +149,17 @@ def execute(operation: str, options: dict):
             mic.close()
     if operation == "stt":
         return transcribe_local(options)
+    if operation == "benchmark_stt":
+        import resource
+        import time
+
+        start = time.monotonic()
+        text = transcribe_local(options)
+        return {
+            "text": text,
+            "seconds": time.monotonic() - start,
+            "peak_rss_kib": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss,
+        }
     if operation == "speak":
         return speak_local(options)
     if operation == "wake":

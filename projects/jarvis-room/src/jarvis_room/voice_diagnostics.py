@@ -33,6 +33,13 @@ def audio_diagnostics(sd: Any = None) -> dict[str, Any]:
         "wslg_directory": Path("/mnt/wslg").is_dir(),
         "wslg_pulse_socket": Path("/mnt/wslg/PulseServer").exists(),
         "pulse_server_configured": bool(os.environ.get("PULSE_SERVER")),
+        "permissions": {
+            "wslg_pulse_readable": os.access("/mnt/wslg/PulseServer", os.R_OK),
+            "wslg_pulse_writable": os.access("/mnt/wslg/PulseServer", os.W_OK),
+            "snd_directory_exists": Path("/dev/snd").is_dir(),
+            "snd_directory_readable": os.access("/dev/snd", os.R_OK),
+            "snd_directory_writable": os.access("/dev/snd", os.W_OK),
+        },
         "tools": {
             name: shutil.which(name) is not None
             for name in (
