@@ -1,7 +1,8 @@
 # Relatório técnico — Sprint 7 — comunicação por voz
 
 Data: 19/10/2026, America/Bahia.
-Status: implementação validada offline; homologação acústica humana pendente.
+Status: implementação publicada e aprovada offline/local/CI;
+homologação acústica humana pendente.
 Nenhuma permissão física adicional. Nenhum PR ou merge automático.
 
 ## Base e entrega incremental
@@ -125,8 +126,13 @@ Workflow `JARVIS Room offline unittest` atualizado para a branch S7, com Python
 em `src/openjarvis/speech/**` também disparam essa regressão. Checkout de duas
 revisões permite `git diff --check HEAD^ HEAD` em clone raso.
 
-O resultado e o link da execução remota serão consolidados após o primeiro push.
-Nenhum PR/merge é realizado por este fluxo.
+Primeiro push concluído. [CI aprovado, execução 39334983464](https://github.com/JotakuGr/jarvis-room-private/actions/runs/39334983464)
+na revisão `6511fa01e0fb00d74100740be3eaf4e132842555`. Job `unittest-offline`
+aprovado, incluindo **714 testes em 2,215 s** e `git diff --check HEAD^ HEAD`,
+conforme log remoto consultado. Encerramento em 19/10/2026 às 19:26:52
+(America/Bahia; 22:26:52 UTC). O commit posterior consolida somente este
+relatório e também é enviado para nova execução do mesmo workflow; seu SHA e
+link final são informados na entrega. Nenhum PR ou merge foi criado.
 
 ## Critérios de aceite e pendências
 
@@ -141,7 +147,7 @@ Nenhum PR/merge é realizado por este fluxo.
 | 7. Não reutilizar voz própria | Half-duplex/buffers/cooldown/eco aprovados com fakes | Eco e reverberação na sala real |
 | 8. Sem acionamento por transcrição | Rota exclusivamente offline; LLM não chama parser | Preservar essa fronteira na homologação |
 | 9. Preservar controles/testes | 597 anteriores aprovados; nenhuma alteração nas permissões físicas | Nenhuma |
-| 10. CI e relatório | Relatório presente; execução remota a consolidar | Registrar URL/status após push |
+| 10. CI e relatório | Relatório presente; CI aprovado com 714 testes e whitespace | Nenhuma pendência de CI nesta revisão |
 
 Não declarar homologação integral nem conclusão dos critérios acústicos sem
 essas evidências humanas. Roteiro e limiares de avaliação em
