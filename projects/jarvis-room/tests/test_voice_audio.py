@@ -110,6 +110,16 @@ class VoiceAudioTests(OfflineVoiceTest):
         self.assertEqual(self.stream_options["device"], 7)
         self.stream.__exit__.assert_called_once()
 
+    def test_readiness_only_after_stream_open(self):
+        self.install_stream([SPEECH])
+        ready = Mock()
+        mic = SoundDeviceMicrophone(on_ready=ready)
+        ready.assert_not_called()
+        with mic.frames(timeout=1, cancel=Event()) as source:
+            ready.assert_called_once()
+            self.assertIsNotNone(mic._stream)
+            next(source)
+
     def test_audio_overflow_discards_pending_frames(self):
         self.install_stream([SPEECH] * 9)
         mic = SoundDeviceMicrophone()

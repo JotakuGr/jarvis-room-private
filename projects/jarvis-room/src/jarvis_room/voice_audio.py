@@ -52,6 +52,7 @@ class SoundDeviceMicrophone:
         startup_seconds: float = 4,
         silence_seconds: float = 1.2,
         clock: Callable[[], float] = time.monotonic,
+        on_ready: Callable[[], None] | None = None,
     ) -> None:
         if (
             type(threshold) is not int
@@ -67,6 +68,7 @@ class SoundDeviceMicrophone:
         self.startup_seconds = startup_seconds
         self.silence_seconds = silence_seconds
         self.clock = clock
+        self.on_ready = on_ready
         self._stream = None
 
     @contextmanager
@@ -114,6 +116,8 @@ class SoundDeviceMicrophone:
                 callback=callback,
             ) as stream:
                 self._stream = stream
+                if self.on_ready is not None:
+                    self.on_ready()
                 yield read_frames()
         finally:
             self._stream = None

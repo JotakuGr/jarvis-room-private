@@ -5,11 +5,19 @@ from __future__ import annotations
 import base64
 import contextlib
 import json
+import os
 import sys
+from pathlib import Path
 from threading import Event
 
 from .voice_backends import PT_VOICES, local_file
 from .voice_contract import VoiceError
+
+
+def notify_audio_ready() -> None:
+    path = os.environ.get("JARVIS_VOICE_READY_FILE")
+    if path:
+        Path(path).touch()
 
 
 def transcribe_local(options: dict) -> str:
@@ -140,7 +148,11 @@ def execute(operation: str, options: dict):
     if operation == "capture":
         from .voice_audio import SoundDeviceMicrophone
 
-        mic = SoundDeviceMicrophone(options["device"], threshold=options["threshold"])
+        mic = SoundDeviceMicrophone(
+            options["device"],
+            threshold=options["threshold"],
+            on_ready=notify_audio_ready,
+        )
         try:
             return base64.b64encode(
                 mic.capture(timeout=options["seconds"], cancel=Event())

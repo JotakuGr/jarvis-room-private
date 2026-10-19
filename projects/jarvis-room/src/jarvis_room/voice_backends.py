@@ -12,12 +12,26 @@ import tempfile
 import time
 from pathlib import Path
 from threading import Event
-from typing import Any
+from typing import Any, Callable
 
 from .voice_contract import VoiceError, check_cancel
 
 MAX_RESULT = 12 * 1024 * 1024
 PT_VOICES = ("pm_santa", "pm_alex", "pf_dora")
+VOICE_OLLAMA_CONFIG = """[engine.ollama]
+host = "http://127.0.0.1:11434"
+[telemetry]
+enabled = false
+gpu_metrics = false
+[analytics]
+enabled = false
+[traces]
+enabled = false
+[mcp]
+enabled = false
+[tools]
+enabled = ""
+"""
 
 
 def local_file(directory: str, name: str) -> str:
@@ -31,7 +45,13 @@ class WorkerRunner:
     """Processos descartáveis limitam memória retida e permitem matar libs nativas."""
 
     def run(
-        self, operation: str, options: dict[str, Any], *, timeout: float, cancel: Event
+        self,
+        operation: str,
+        options: dict[str, Any],
+        *,
+        timeout: float,
+        cancel: Event,
+        on_ready: Callable[[], None] | None = None,
     ) -> Any:
         check_cancel(cancel)
         env = os.environ.copy()
@@ -55,7 +75,33 @@ class WorkerRunner:
                 ),
             )
         )
-        with tempfile.TemporaryFile() as request, tempfile.TemporaryFile() as result:
+        with (
+            tempfile.TemporaryDirectory(prefix="jarvis-voice-") as runtime,
+            tempfile.TemporaryFile() as request,
+            tempfile.TemporaryFile() as result,
+        ):
+            # Não herdar configuração, memória, MCP ou destinos de rede de uma
+            # sessão de terminal. Logs privados do SDK morrem com este diretório.
+            config = Path(runtime) / "config.toml"
+            config.write_text(VOICE_OLLAMA_CONFIG, encoding="utf-8")
+            env.update(
+                OPENJARVIS_HOME=runtime,
+                OPENJARVIS_CONFIG=str(config),
+                OLLAMA_HOST="http://127.0.0.1:11434",
+                NO_PROXY="127.0.0.1,localhost",
+                no_proxy="127.0.0.1,localhost",
+            )
+            ready = Path(runtime) / "audio.ready"
+            env["JARVIS_VOICE_READY_FILE"] = str(ready)
+            for key in (
+                "HTTP_PROXY",
+                "HTTPS_PROXY",
+                "ALL_PROXY",
+                "http_proxy",
+                "https_proxy",
+                "all_proxy",
+            ):
+                env.pop(key, None)
             request.write(
                 json.dumps({"operation": operation, "options": options}).encode()
             )
@@ -72,6 +118,9 @@ class WorkerRunner:
                 deadline = time.monotonic() + timeout
                 while process.poll() is None:
                     check_cancel(cancel)
+                    if on_ready is not None and ready.exists():
+                        on_ready()
+                        on_ready = None
                     if time.monotonic() >= deadline:
                         raise VoiceError("operation_timeout")
                     if os.fstat(result.fileno()).st_size > MAX_RESULT:
@@ -100,9 +149,15 @@ class WorkerRunner:
 
 class ProcessMicrophone:
     def __init__(
-        self, runner: WorkerRunner, *, device: int | None = None, threshold: int = 500
+        self,
+        runner: WorkerRunner,
+        *,
+        device: int | None = None,
+        threshold: int = 500,
+        on_ready: Callable[[], None] | None = None,
     ) -> None:
         self.runner, self.device, self.threshold = runner, device, threshold
+        self.on_ready = on_ready
 
     def capture(self, *, timeout: float, cancel: Event) -> bytes:
         result = self.runner.run(
@@ -114,6 +169,7 @@ class ProcessMicrophone:
             },
             timeout=timeout + 5,
             cancel=cancel,
+            on_ready=self.on_ready,
         )
         return base64.b64decode(result, validate=True)
 

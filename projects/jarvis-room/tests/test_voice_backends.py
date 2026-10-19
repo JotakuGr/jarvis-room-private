@@ -333,12 +333,15 @@ class VoiceBackendTests(OfflineVoiceTest):
         with self.assertRaises(VoiceError):
             execute("physical_execute", {})
 
-    def fake_process(self, payload=None, *, code=0, running=False):
+    def fake_process(self, payload=None, *, code=0, running=False, ready=False):
         process = Mock(pid=12345, returncode=code)
         process.poll.return_value = None if running else code
 
         def start(*args, **kwargs):
             self.process_options = kwargs
+            self.worker_config = Path(kwargs["env"]["OPENJARVIS_CONFIG"]).read_text()
+            if ready:
+                Path(kwargs["env"]["JARVIS_VOICE_READY_FILE"]).touch()
             kwargs["stdout"].write(
                 json.dumps(payload or {"ok": True, "result": "result"}).encode()
             )
@@ -358,9 +361,29 @@ class VoiceBackendTests(OfflineVoiceTest):
         self.assertEqual(env["HF_HUB_OFFLINE"], "1")
         self.assertEqual(env["TRANSFORMERS_OFFLINE"], "1")
         self.assertEqual(env["CUDA_VISIBLE_DEVICES"], "")
+        self.assertFalse(Path(env["OPENJARVIS_HOME"]).exists())
+        self.assertIn('host = "http://127.0.0.1:11434"', self.worker_config)
+        self.assertIn("[mcp]\nenabled = false", self.worker_config)
         self.assertTrue(self.process_options["start_new_session"])
         process.wait.assert_called_once()
         self.kill.assert_not_called()
+
+    def test_worker_does_not_inherit_remote_ollama_or_proxy_config(self):
+        self.fake_process()
+        with patch.dict(
+            "os.environ",
+            {
+                "OLLAMA_HOST": "http://outside.invalid:11434",
+                "OPENJARVIS_CONFIG": "/terminal/config.toml",
+                "HTTPS_PROXY": "http://proxy.invalid:8080",
+            },
+        ):
+            WorkerRunner().run("chat", {}, timeout=1, cancel=Event())
+        env = self.process_options["env"]
+        self.assertEqual(env["OLLAMA_HOST"], "http://127.0.0.1:11434")
+        self.assertNotEqual(env["OPENJARVIS_CONFIG"], "/terminal/config.toml")
+        self.assertNotIn("HTTPS_PROXY", env)
+        self.assertEqual(env["NO_PROXY"], "127.0.0.1,localhost")
 
     def test_worker_timeout_kills_process_group(self):
         process = self.fake_process(running=True)
@@ -368,6 +391,14 @@ class VoiceBackendTests(OfflineVoiceTest):
             WorkerRunner().run("stt", {}, timeout=1, cancel=Event())
         self.kill.assert_called_once()
         process.wait.assert_called_once()
+
+    def test_worker_propagates_audio_readiness_once(self):
+        process = self.fake_process(ready=True)
+        process.poll.side_effect = [None, 0, 0]
+        ready, cancel = Mock(), Event()
+        with patch.object(cancel, "wait", return_value=False):
+            WorkerRunner().run("capture", {}, timeout=1, cancel=cancel, on_ready=ready)
+        ready.assert_called_once_with()
 
     def test_worker_cancel_kills_process_group(self):
         process = self.fake_process(running=True)

@@ -177,7 +177,10 @@ def main() -> None:
 
     session = VoiceSession(
         ProcessMicrophone(
-            runner, device=args.input_device, threshold=args.silence_threshold
+            runner,
+            device=args.input_device,
+            threshold=args.silence_threshold,
+            on_ready=lambda: print("Microfone pronto. Pode falar.", flush=True),
         ),
         transcriber,
         VoiceRouter(LocalChat(runner) if args.llm else None),
