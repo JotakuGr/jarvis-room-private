@@ -16,6 +16,7 @@ from threading import Event
 from typing import Any, Callable
 
 from .voice_contract import VoiceError, check_cancel, public_error
+from .voice_persona import DEFAULT_SPEED, DEFAULT_VOICE, DEFAULT_VOLUME, prepare_speech
 
 MAX_RESULT = 12 * 1024 * 1024
 PT_VOICES = ("pm_santa", "pm_alex", "pf_dora")
@@ -244,9 +245,9 @@ class LocalSpeaker:
         runner: WorkerRunner,
         model_dir: str,
         *,
-        voice: str = "pm_santa",
-        speed: float = 1,
-        volume: float = 0.7,
+        voice: str = DEFAULT_VOICE,
+        speed: float = DEFAULT_SPEED,
+        volume: float = DEFAULT_VOLUME,
         device: int | None = None,
     ) -> None:
         if voice not in PT_VOICES or not 0.5 <= speed <= 2 or not 0 <= volume <= 1:
@@ -265,7 +266,7 @@ class LocalSpeaker:
     def speak(self, text: str, *, timeout: float, cancel: Event) -> None:
         self.runner.run(
             "speak",
-            {**self.options, "text": text[:800], "seconds": timeout},
+            {**self.options, "text": prepare_speech(text)[:800], "seconds": timeout},
             timeout=timeout,
             cancel=cancel,
         )

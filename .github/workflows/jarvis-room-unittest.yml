@@ -2,7 +2,7 @@ name: JARVIS Room offline unittest
 
 on:
   push:
-    branches: [main, feature/sprint3-ha-laboratorio-readonly, feature/sprint4-samsung-ha-control, feature/sprint5-samsung-natural-commands, feature/sprint6-room-orchestration, feature/sprint7-voice-interaction, feature/sprint9-voice-frontend-integration]
+    branches: [main, feature/sprint3-ha-laboratorio-readonly, feature/sprint4-samsung-ha-control, feature/sprint5-samsung-natural-commands, feature/sprint6-room-orchestration, feature/sprint7-voice-interaction, feature/sprint9-voice-frontend-integration, feature/sprint9-1-jarvis-wake-persona]
     paths:
       - 'projects/jarvis-room/**'
       - '.github/workflows/jarvis-room-unittest.yml'

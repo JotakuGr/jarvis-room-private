@@ -189,7 +189,12 @@ class PlaybackEventTests(OfflineVoiceTest):
 class SpeakerPresentationTests(OfflineVoiceTest):
     def assets(self):
         root = Path(self.enterContext(tempfile.TemporaryDirectory()))
-        for name in ("config.json", "kokoro-v1_0.pth", "voices/pm_santa.pt"):
+        for name in (
+            "config.json",
+            "kokoro-v1_0.pth",
+            "voices/pm_santa.pt",
+            "voices/pm_alex.pt",
+        ):
             file = root / name
             file.parent.mkdir(exist_ok=True)
             file.write_bytes(b"fake")

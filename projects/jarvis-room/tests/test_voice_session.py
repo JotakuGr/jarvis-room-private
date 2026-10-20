@@ -23,19 +23,20 @@ class VoiceSessionTests(OfflineVoiceTest):
                 VoiceState.TRANSCRIBING,
                 VoiceState.THINKING,
                 VoiceState.RESPONDING,
+                VoiceState.IDLE,
                 VoiceState.LISTENING,
                 VoiceState.IDLE,
             ],
         )
         self.assertIn("Planejamento offline", self.output[0])
 
-    def test_multiple_turns_without_repeating_jarvis(self):
+    def test_following_turn_without_jarvis_is_ignored(self):
         session = self.session(
             captures=[wav(), wav(), b""],
             texts=["Jarvis, ligue os monitores.", "Desligue os LEDs."],
         )
         session.activate()
-        self.assertEqual(len(self.speaker.texts), 2)
+        self.assertEqual(len(self.speaker.texts), 1)
         self.assertEqual(len(self.stt.calls), 2)
 
     def test_silence_never_transcribes(self):
@@ -73,7 +74,7 @@ class VoiceSessionTests(OfflineVoiceTest):
 
     def test_llm_late_reply_never_spoken(self):
         chat = Mock()
-        session = self.session(texts=["Explique fotossíntese."], chat=chat)
+        session = self.session(texts=["Jarvis, explique fotossíntese."], chat=chat)
         chat.answer.side_effect = lambda *a, **k: self.clock.wait(50) or "resposta"
         session.activate()
         self.assertEqual(self.output, [])
@@ -123,7 +124,7 @@ class VoiceSessionTests(OfflineVoiceTest):
         session = self.session(
             chat=chat,
             captures=[wav(), wav()],
-            texts=["Explique fotossíntese.", "Jarvis, ligue os monitores."],
+            texts=["Jarvis, explique fotossíntese.", "Jarvis, ligue os monitores."],
         )
         session.activate()
         self.assertEqual(len(self.speaker.texts), 1)
@@ -187,7 +188,7 @@ class VoiceSessionTests(OfflineVoiceTest):
         self.assertFalse(session.activate())
 
     def test_spoken_cancel_only_ends_window(self):
-        session = self.session(texts=["cancelar"])
+        session = self.session(texts=["Jarvis, cancelar"])
         self.assertTrue(session.activate())
         self.assertFalse(session.cancel.is_set())
 
@@ -203,7 +204,9 @@ class VoiceSessionTests(OfflineVoiceTest):
     def test_wake_activates_one_multiturn_window(self):
         wake = Mock(wait=Mock(return_value=True))
         session = self.session(
-            wake=wake, captures=[wav(), wav()], texts=["Ligue os LEDs.", "sair"]
+            wake=wake,
+            captures=[wav(), wav()],
+            texts=["Jarvis, ligue os LEDs.", "Jarvis, sair"],
         )
         run_voice(session, manual=False, output=self.output.append)
         wake.wait.assert_called_once()
@@ -217,7 +220,7 @@ class VoiceSessionTests(OfflineVoiceTest):
 
     def test_memory_erased_at_window_end(self):
         chat = Mock(answer=Mock(return_value="Uma explicação."))
-        session = self.session(chat=chat, texts=["Explique fotossíntese."])
+        session = self.session(chat=chat, texts=["Jarvis, explique fotossíntese."])
         session.activate()
         self.assertEqual(list(session.router.history), [])
 

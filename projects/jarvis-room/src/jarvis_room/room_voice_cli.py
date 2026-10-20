@@ -24,6 +24,7 @@ from .voice_contract import (
     public_error,
 )
 from .voice_llm import DEFAULT_VOICE_MODEL
+from .voice_persona import DEFAULT_SPEED, DEFAULT_VOICE, DEFAULT_VOLUME
 from .voice_resident import ResidentTranscriber
 from .voice_router import VoiceRouter
 from .voice_session import VoiceSession
@@ -35,18 +36,27 @@ def run_voice(
     session: VoiceSession,
     *,
     manual: bool = True,
+    continuous: bool = False,
     read: Callable[[str], str] = input,
     output: Callable[[str], None] = print,
 ) -> int:
-    """Enter abre janela limitada; EOF/Ctrl+C revogam tudo e fecham recursos."""
+    """Vocativo sempre obrigatório; Ctrl+C fecha também a escuta experimental."""
     try:
         with session:
             output(
                 "J.A.R.V.I.S.: Voz local. Controle físico desabilitado. "
-                "Wake word não autentica o operador. Ctrl+C encerra."
+                "Cada solicitação deve começar com Jarvis. "
+                "Wake word não autentica o operador. "
+                "Ctrl+C desliga o microfone e encerra."
             )
+            if continuous:
+                output(
+                    "Escuta contínua EXPERIMENTAL: VAD de energia + STT local. "
+                    "Não é detector acústico de Jarvis; pode consumir CPU/GPU "
+                    "e perder falas entre capturas."
+                )
             while not session.cancel.is_set():
-                if manual:
+                if manual and not continuous:
                     command = read("Enter: falar; sair: encerrar > ").strip().casefold()
                     if command == "sair":
                         break
@@ -55,7 +65,7 @@ def run_voice(
                             "Use Enter para ativar o microfone ou sair para encerrar."
                         )
                         continue
-                else:
+                elif not continuous:
                     try:
                         if not session.await_wake():
                             continue
@@ -68,8 +78,17 @@ def run_voice(
                         )
                         manual = True
                         continue
-                if not session.activate():
+                if not session.activate(passive=continuous):
                     break
+                if continuous:
+                    if session.last_error:
+                        output(
+                            "Escuta experimental interrompida após falha. "
+                            "Execute --diagnose."
+                        )
+                        return 1
+                    if session.wait(session.config.passive_pause_seconds):
+                        raise VoiceCancelled("cancelled")
     except (EOFError, KeyboardInterrupt, VoiceCancelled):
         session.close()
     except Exception:
@@ -127,10 +146,10 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--tts-model-dir", help="Kokoro local; omitido mantém saída textual"
     )
-    result.add_argument("--voice", choices=PT_VOICES, default="pm_santa")
+    result.add_argument("--voice", choices=PT_VOICES, default=DEFAULT_VOICE)
     result.add_argument("--tts-backend", choices=("none", "kokoro"), default="kokoro")
-    result.add_argument("--speed", type=float, default=1)
-    result.add_argument("--volume", type=float, default=0.7)
+    result.add_argument("--speed", type=float, default=DEFAULT_SPEED)
+    result.add_argument("--volume", type=float, default=DEFAULT_VOLUME)
     result.add_argument("--input-device", type=int)
     result.add_argument("--output-device", type=int)
     result.add_argument("--silence-threshold", type=int, default=500)
@@ -142,6 +161,12 @@ def parser() -> argparse.ArgumentParser:
         "--wake-license-file", help="Registro local da origem/licenças dos ONNX"
     )
     result.add_argument("--wake-threshold", type=float, default=0.6)
+    result.add_argument(
+        "--continuous-experimental",
+        action="store_true",
+        help="Opt-in: VAD + STT residente; exige Jarvis em cada fala; Ctrl+C encerra",
+    )
+    result.add_argument("--passive-pause-seconds", type=float, default=0.25)
     result.add_argument("--active-seconds", type=float, default=300)
     result.add_argument("--inactivity-seconds", type=float, default=30)
     result.add_argument("--capture-seconds", type=float, default=15)
@@ -213,6 +238,11 @@ def run_text_chat(
 def main() -> None:
     cli = parser()
     args = cli.parse_args()
+    if args.continuous_experimental and (args.wake_model_dir or args.text_chat):
+        cli.error(
+            "--continuous-experimental é exclusivo da captura VAD+STT; "
+            "não combine com --wake-model-dir ou --text-chat."
+        )
     if (args.presentation_socket or args.share_conversation) and not args.presentation:
         cli.error("--presentation-socket e --share-conversation exigem --presentation.")
     runner = WorkerRunner()
@@ -336,6 +366,7 @@ def main() -> None:
             max_turns=args.max_turns,
             inactivity_seconds=args.inactivity_seconds,
             retain_context=True,
+            passive_pause_seconds=args.passive_pause_seconds,
         )
         if not 1 <= args.silence_threshold <= 32767:
             raise ValueError("invalid_threshold")
@@ -440,12 +471,21 @@ def main() -> None:
         if publisher is not None:
             publisher.metrics(metrics)
 
+    def microphone_ready():
+        if args.continuous_experimental:
+            if publisher is not None:
+                publisher.service(
+                    "voice", "connected", "Microfone aberto; espera por Jarvis"
+                )
+        else:
+            print("Microfone pronto. Comece com Jarvis.", flush=True)
+
     session = VoiceSession(
         ProcessMicrophone(
             runner,
             device=args.input_device,
             threshold=args.silence_threshold,
-            on_ready=lambda: print("Microfone pronto. Pode falar.", flush=True),
+            on_ready=microphone_ready,
         ),
         transcriber,
         VoiceRouter(chat),
@@ -459,7 +499,11 @@ def main() -> None:
         else None,
     )
     try:
-        raise SystemExit(run_voice(session, manual=wake is None))
+        raise SystemExit(
+            run_voice(
+                session, manual=wake is None, continuous=args.continuous_experimental
+            )
+        )
     finally:
         if publisher is not None:
             publisher.close()

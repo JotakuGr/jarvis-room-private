@@ -12,10 +12,11 @@ from threading import Event
 
 from .voice_backends import PT_VOICES, LocalSpeaker, local_file
 from .voice_contract import VoiceError
+from .voice_persona import DEFAULT_VOICE, prepare_speech
 from .voice_resident import ResidentWorker
 
 
-def tts_prerequisites(directory, voice="pm_santa") -> dict:
+def tts_prerequisites(directory, voice=DEFAULT_VOICE) -> dict:
     missing = []
     for package in ("kokoro", "torch", "sounddevice"):
         try:
@@ -167,7 +168,10 @@ class ResidentSpeaker(LocalSpeaker):
             self.worker.start(timeout=min(timeout, self.startup_seconds), cancel=cancel)
             remaining = deadline - time.monotonic()
             result = self.worker.request(
-                "synthesize", {"text": text[:380]}, timeout=remaining, cancel=cancel
+                "synthesize",
+                {"text": prepare_speech(text)[:380]},
+                timeout=remaining,
+                cancel=cancel,
             )
             audio = base64.b64decode(result["audio"], validate=True)
             validate_tts_wav(audio)

@@ -142,4 +142,33 @@ describe('LIVE SSE lifecycle with fake transport', () => {
     expect(source.getSnapshot().voiceState).toBe('IDLE');
     expect(source.getSnapshot().amplitude).toBe(0); demo.dispose(); source.dispose();
   });
+  it('keeps passive waiting idle and animates a greeting only with playback energy', () => {
+    const { source, send } = live();
+    send(event(1, 'connection', { state: 'connected' }));
+    send(event(2, 'service_status', { id: 'voice', status: 'connected', detail: 'Microfone aberto; espera por Jarvis' }));
+    expect(source.getSnapshot().voiceState).toBe('IDLE');
+    send(event(3, 'voice_state', { state: 'RESPONDING' }));
+    send(event(4, 'playback_status', { state: 'synthesizing' }));
+    expect(source.getSnapshot().amplitude).toBe(0);
+    send(event(5, 'playback_status', { state: 'playing' }));
+    send(event(6, 'voice_amplitude', { amplitude: .35 }));
+    expect(source.getSnapshot().amplitude).toBe(.35);
+    send(event(7, 'voice_amplitude', { amplitude: 0 }));
+    send(event(8, 'playback_status', { state: 'idle' }));
+    send(event(9, 'voice_state', { state: 'IDLE' }));
+    expect(source.getSnapshot().voiceState).toBe('IDLE');
+    expect(source.getSnapshot().amplitude).toBe(0);
+    expect(source.getSnapshot().conversation).toBeNull(); source.dispose();
+  });
+  it('zeros greeting energy immediately when the backend disconnects', () => {
+    const { source, streams, send } = live();
+    send(event(1, 'connection', { state: 'connected' }));
+    send(event(2, 'voice_state', { state: 'RESPONDING' }));
+    send(event(3, 'playback_status', { state: 'playing' }));
+    send(event(4, 'voice_amplitude', { amplitude: .7 }));
+    streams[0].onerror?.(new Event('error'));
+    expect(source.getSnapshot().amplitude).toBe(0);
+    expect(source.getSnapshot().voiceState).toBe('IDLE');
+    expect(source.getSnapshot().connection.state).toBe('reconnecting'); source.dispose();
+  });
 });

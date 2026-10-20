@@ -169,3 +169,50 @@ class VoiceCLIConfigurationTests(OfflineVoiceTest):
         publisher.state.assert_called_once_with(room_voice_cli.VoiceState.LISTENING)
         publisher.metrics.assert_called_once()
         publisher.close.assert_called_once()
+
+    def test_continuous_cannot_be_combined_with_acoustic_wake_or_text_chat(self):
+        for extra in (["--wake-model-dir", "/local/wake"], ["--text-chat"]):
+            with self.subTest(extra=extra):
+                self.setup_cli(["--continuous-experimental", *extra])
+                with (
+                    patch.object(room_voice_cli, "ProcessMicrophone") as microphone,
+                    self.assertRaises(SystemExit) as result,
+                ):
+                    room_voice_cli.main()
+                self.assertEqual(result.exception.code, 2)
+                microphone.assert_not_called()
+
+    def test_cli_wires_continuous_mode_and_selected_voice_without_model_load(self):
+        for voice_args, expected in (
+            ([], "pm_alex"),
+            (["--voice", "pm_santa"], "pm_santa"),
+        ):
+            with self.subTest(voice=expected):
+                self.setup_cli(
+                    [
+                        "--stt-model-dir",
+                        "/local/model",
+                        "--tts-model-dir",
+                        "/local/kokoro",
+                        "--continuous-experimental",
+                        *voice_args,
+                    ]
+                )
+                with (
+                    patch.object(room_voice_cli, "ResidentTranscriber") as stt,
+                    patch.object(
+                        room_voice_cli,
+                        "tts_prerequisites",
+                        return_value={"ready": True},
+                    ) as prerequisites,
+                    patch.object(room_voice_cli, "ResidentSpeaker") as speaker,
+                    patch.object(room_voice_cli, "run_voice", return_value=0) as run,
+                    self.assertRaises(SystemExit),
+                ):
+                    room_voice_cli.main()
+                prerequisites.assert_called_once_with("/local/kokoro", expected)
+                self.assertEqual(speaker.call_args.kwargs["voice"], expected)
+                self.assertEqual(speaker.call_args.kwargs["speed"], 0.92)
+                self.assertEqual(speaker.call_args.kwargs["volume"], 0.5)
+                self.assertTrue(run.call_args.kwargs["continuous"])
+                stt.return_value.prepare.assert_not_called()

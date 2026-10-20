@@ -1,4 +1,4 @@
-"""Máquina de estados de voz; uma ativação abre vários turnos limitados."""
+"""Máquina de estados de voz; cada solicitação exige vocativo inicial exato."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from typing import Callable
 
 from .command_router import normalize
 from .room_text import normalize_room_text
+from .voice_activation import addressed_speech
 from .voice_contract import (
     Microphone,
     Speaker,
@@ -21,6 +22,7 @@ from .voice_contract import (
     check_cancel,
     public_error,
 )
+from .voice_persona import CALL_GREETING, prepare_speech
 from .voice_router import VoiceReply, VoiceRouter
 
 
@@ -52,8 +54,10 @@ class VoiceSession:
         self.last_metrics: dict = {}
         self.state = VoiceState.IDLE
         self.closed = False
+        self.last_error = False
         self._busy = False
-        self._spoken: list[str] = []
+        self._prepared = False
+        self._spoken: deque[tuple[float, str]] = deque(maxlen=2)
         self._activations: deque[float] = deque(maxlen=6)
         self._context_deadline: float | None = None
 
@@ -83,23 +87,30 @@ class VoiceSession:
         finally:
             self._busy = False
 
-    def activate(self) -> bool:
-        """Chamada só por botão/Enter ou detector acústico; False encerra a CLI."""
+    def activate(self, *, passive: bool = False) -> bool:
+        """Enter/detector ou um ciclo experimental VAD+STT; False encerra CLI.
+
+        No ciclo passivo, captura e STT permanecem IDLE até validar o nome.
+        Nenhum texto descartado é entregue ao roteador, observador ou histórico.
+        """
         if self.closed or self._busy:
             raise VoiceError("session_unavailable")
         self._busy = True
+        self.last_error = False
         if not self.config.retain_context or (
             self._context_deadline is not None
             and self.clock() >= self._context_deadline
         ):
             self.router.clear()
-        self._spoken.clear()
+        while self._spoken and self.clock() >= self._spoken[0][0]:
+            self._spoken.popleft()
         stage = "stt_initialization"
         try:
             prepare = getattr(self.transcriber, "prepare", None)
-            if callable(prepare):
+            if callable(prepare) and not self._prepared:
                 self.output("J.A.R.V.I.S.: Preparando reconhecimento de fala.")
                 metrics = prepare(cancel=self.cancel)
+                self._prepared = True
                 if self.on_metrics is not None:
                     self.on_metrics({"stage": stage, **metrics})
             # Carga do modelo não consome a janela de fala/inatividade.
@@ -107,7 +118,7 @@ class VoiceSession:
             idle_deadline = self.clock() + (
                 self.config.inactivity_seconds or self.config.active_seconds
             )
-            for _ in range(self.config.max_turns):
+            for _ in range(1 if passive else self.config.max_turns):
                 check_cancel(self.cancel)
                 remaining = min(deadline, idle_deadline) - self.clock()
                 if remaining <= 0:
@@ -119,7 +130,8 @@ class VoiceSession:
                 previous_ready = getattr(self.microphone, "on_ready", None)
 
                 def ready():
-                    self._state(VoiceState.LISTENING)
+                    if not passive:
+                        self._state(VoiceState.LISTENING)
                     if callable(previous_ready):
                         previous_ready()
 
@@ -127,7 +139,7 @@ class VoiceSession:
                     self._state(VoiceState.IDLE)
                     self.microphone.on_ready = ready
                 else:
-                    self._state(VoiceState.LISTENING)  # adaptadores síncronos/fakes
+                    self._state(VoiceState.IDLE if passive else VoiceState.LISTENING)
                 try:
                     audio = self.microphone.capture(
                         timeout=min(self.config.capture_seconds, remaining),
@@ -145,13 +157,15 @@ class VoiceSession:
                 if self.clock() >= deadline:
                     break
                 stage = "stt"
-                self._state(VoiceState.TRANSCRIBING)
+                if not passive:
+                    self._state(VoiceState.TRANSCRIBING)
                 stage_started = self.clock()
                 text = self.transcriber.transcribe(
                     audio,
                     timeout=min(self.config.operation_seconds, deadline - self.clock()),
                     cancel=self.cancel,
                 )
+                del audio  # WAV só vive durante captura/inferência deste ciclo.
                 self.last_metrics["stt_seconds"] = self.clock() - stage_started
                 self.last_metrics["stt"] = getattr(
                     self.transcriber, "last_metrics", {}
@@ -159,12 +173,28 @@ class VoiceSession:
                 check_cancel(self.cancel)
                 if not text.strip() or self.clock() >= deadline:
                     break
-                normalized = normalize_room_text(text)
+                admitted = addressed_speech(text)
+                if self.on_metrics is not None:
+                    self.on_metrics(
+                        {
+                            "stage": "voice_admission",
+                            "accepted": admitted is not None,
+                            **self.last_metrics,
+                        }
+                    )
+                if admitted is None:
+                    # Sem resposta, publicação de transcrição ou consulta LLM.
+                    del text
+                    continue
+                request = admitted.request
+                normalized = normalize_room_text(request)
                 # Defesa suplementar ao isolamento acústico: uma frase recém
                 # falada pelo assistente nunca retorna ao interpretador.
-                echo = normalize(text)
+                echo = normalize(prepare_speech(text))
                 if len(echo) >= 8 and any(
-                    echo in previous for previous in self._spoken
+                    echo in previous
+                    for expires, previous in self._spoken
+                    if self.clock() < expires
                 ):
                     self.output(
                         "J.A.R.V.I.S.: Possível eco descartado. Janela fechada."
@@ -180,13 +210,18 @@ class VoiceSession:
                     self.output("J.A.R.V.I.S.: Contexto apagado.")
                     continue
                 stage = "router_llm"
-                self._state(VoiceState.THINKING)
                 stage_started = self.clock()
-                reply = self.router.respond(
-                    text,
-                    timeout=min(self.config.operation_seconds, deadline - self.clock()),
-                    cancel=self.cancel,
-                )
+                if not request:
+                    reply = VoiceReply(CALL_GREETING, "activation", CALL_GREETING)
+                else:
+                    self._state(VoiceState.THINKING)
+                    reply = self.router.respond(
+                        request,
+                        timeout=min(
+                            self.config.operation_seconds, deadline - self.clock()
+                        ),
+                        cancel=self.cancel,
+                    )
                 self.last_metrics["router_llm_seconds"] = self.clock() - stage_started
                 self.last_metrics["reply_channel"] = reply.channel
                 if reply.error_code is not None:
@@ -197,14 +232,18 @@ class VoiceSession:
                 self._state(VoiceState.RESPONDING)
                 self.output("J.A.R.V.I.S.: " + reply.text)
                 if self.on_reply is not None:
-                    self.on_reply(text, reply)
+                    self.on_reply(request, reply)
                 if self.speaker is not None:
                     stage = "tts"
                     stage_started = self.clock()
                     try:
                         spoken = reply.spoken_text or reply.text
-                        self._spoken.append(normalize(spoken[:380]))
-                        self._spoken = self._spoken[-2:]
+                        self._spoken.append(
+                            (
+                                self.clock() + self.config.operation_seconds + 30,
+                                normalize(prepare_speech(spoken)[:380]),
+                            )
+                        )
                         self.speaker.speak(
                             spoken,
                             timeout=self.config.operation_seconds,
@@ -238,11 +277,15 @@ class VoiceSession:
                     self.config.inactivity_seconds or self.config.active_seconds
                 )
                 self._context_deadline = idle_deadline
+                self._state(VoiceState.IDLE)
+                if not request:
+                    break  # chamado isolado não abre exceção ao vocativo
             return True
         except (VoiceCancelled, KeyboardInterrupt):
             self.cancel.set()
             raise
         except Exception as exc:
+            self.last_error = True
             self._state(VoiceState.ERROR)
             code = public_error(exc, f"{stage}_unavailable")
             self.output(
@@ -263,7 +306,6 @@ class VoiceSession:
         finally:
             if not self.config.retain_context:
                 self.router.clear()
-            self._spoken.clear()
             self._busy = False
             self._state(VoiceState.IDLE)
 

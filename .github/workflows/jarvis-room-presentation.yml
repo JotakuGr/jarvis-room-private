@@ -2,7 +2,7 @@ name: JARVIS Room presentation offline
 
 on:
   push:
-    branches: [main, feature/sprint9-voice-frontend-integration]
+    branches: [main, feature/sprint9-voice-frontend-integration, feature/sprint9-1-jarvis-wake-persona]
     paths: ['projects/jarvis-room/frontend/**', 'projects/jarvis-room/config/room_*.json', '.github/workflows/jarvis-room-presentation.yml']
   pull_request:
     branches: [main]
