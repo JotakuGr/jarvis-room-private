@@ -421,3 +421,35 @@ npm run dev
 Abra `http://127.0.0.1:5174/monitor/1` e `http://127.0.0.1:5174/monitor/2` em janelas
 separadas. Sem acesso ao Home Assistant, microfone, TTS real ou controle físico.
 Build, testes e pendências estão no [relatório da Sprint 8](docs/reports/sprint-8-acceptance.md).
+
+### Sprint 9 — sessão de voz conectada às telas
+
+- Estados reais S7 publicados por socket Unix privado e distribuídos por SSE
+  em loopback. DEMO e LIVE separados, heartbeat, reconexão e limpeza de dados.
+- Cena e fundo S8 preservados. Energia do holograma vem do PCM na reprodução
+  real do TTS, com suavização, relógio DAC e retorno a zero em falha/cancelamento.
+- Ollama/Qwen 3.5 4B reutilizados, sem ferramentas físicas. Conversa no Monitor 2
+  somente com opt-in da CLI e opção de exibição; sem entrada de comandos no navegador.
+- GET HA opcional e restrito ao auxiliar virtual; tokens apenas no backend,
+  sem presumir entidades Samsung antigas. Catálogo/cenas canônicos preservados.
+- Kokoro/Torch e assets brasileiros ausentes no ambiente auditado: infraestrutura
+  pronta e testada com fakes, síntese/audição reais ainda pendentes.
+- **885 testes Python**, **50 TypeScript** e **6 E2E** aprovados; build, Ruff e
+  whitespace aprovados. Não há homologação real de voz/GPU/HA nesta entrega.
+
+Backend, da raiz do repositório:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.presentation_server
+```
+
+Frontend: `cd projects/jarvis-room/frontend` e `npm run dev`. Abra as duas rotas
+5174 acima e selecione LIVE em cada janela. Em outro terminal, na homologação
+autorizada, execute a sessão S7 com `--presentation`; um único processo de voz
+alimenta os dois monitores. Sem sessão, os serviços de voz ficam indisponíveis.
+
+[Comandos completos e diagnóstico](docs/integrations/voice-frontend-integration.md),
+[contrato v2](docs/integrations/presentation-events.md),
+[controles futuros supervisionados](docs/integrations/supervised-physical-automation.md) e
+[relatório da Sprint 9](docs/reports/sprint-9-acceptance.md).
+Sem push, PR ou merge automáticos. Controle físico por voz/UI permanece bloqueado.
