@@ -1,0 +1,52 @@
+import { useEffect, useRef, useState } from 'react';
+import { devices, previewScene, scenes } from '../data/catalog';
+import type { DeviceStatus, RoomDevice, RoomScene } from '../contracts';
+import { usePresentation } from '../state';
+import { DemoPanel } from '../components/DemoPanel';
+import { Icon } from '../components/Icon';
+
+const labels: Record<DeviceStatus, string> = { planned: 'Planejado', unknown: 'Desconhecido', offline: 'Offline', connected: 'Conectado', unavailable: 'Indisponível' };
+const names: Record<string, string> = { samsung_lab_tv: 'Monitor Samsung', hikvision_board: 'Lousa Hikvision', jarvis_interface_display: 'Interface J.A.R.V.I.S.', second_display_placeholder: 'Tela do dashboard', led_perimeter: 'LEDs do perímetro', room_main_lights: 'Iluminação principal', air_conditioner: 'Ar-condicionado', room_audio: 'Alto-falantes', presence_sensor: 'Sensor de presença' };
+function formatTime(value: string | null) { return value ? new Date(value).toLocaleTimeString('pt-BR') : 'Sem leitura'; }
+function DeviceCard({ device }: { device: RoomDevice }) {
+  const { snapshot } = usePresentation(); const observation = snapshot.devices[device.id];
+  return <article className="device-card" data-device-id={device.id}>
+    <div className="device-card-top"><span className={`status-dot ${observation.status}`} /><span className={`status-label ${observation.status}`}>{labels[observation.status]}</span><Icon name="lock" size={13} /></div>
+    <h3>{names[device.id]}</h3><p className="device-model">{device.model ?? (device.recordKind === 'planned_role' ? 'Equipamento a confirmar' : 'Modelo a definir')}</p>
+    <div className="device-description">{device.id === 'samsung_lab_tv' ? 'Integração de laboratório existente. Sem consulta ao vivo.' : device.id === 'led_perimeter' ? 'WS2815 · 12 V · 100 m planejados. Projeto elétrico pendente.' : device.id === 'room_main_lights' ? 'Controlador ainda não integrado.' : device.id === 'presence_sensor' ? 'Sem medição de presença disponível.' : device.id === 'air_conditioner' ? 'Sem medição de temperatura disponível.' : 'Integração ainda não homologada.'}</div>
+    <div className="device-card-bottom"><span>{observation.source === 'demo' ? 'DEMO · status simulado' : observation.source === 'backend' ? 'Evento somente leitura' : 'Catálogo declarativo'}</span><span>{observation.state === 'on' ? 'Ligado' : observation.state === 'off' ? 'Desligado' : '—'}</span></div>
+  </article>;
+}
+function DeviceSection({ title, icon, categories }: { title: string; icon: Parameters<typeof Icon>[0]['name']; categories: RoomDevice['category'][] }) {
+  const items = devices.filter(device => categories.includes(device.category));
+  return <section className={`dashboard-section section-${categories[0]}`}><div className="section-title"><Icon name={icon} /><h2>{title}</h2><span>{String(items.length).padStart(2, '0')}</span></div><div className="device-grid">{items.map(device => <DeviceCard key={device.id} device={device} />)}</div></section>;
+}
+function SceneDialog({ scene, onClose }: { scene: RoomScene; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null); const plan = previewScene(scene);
+  useEffect(() => { ref.current?.showModal(); }, []);
+  return <dialog className="scene-dialog" ref={ref} onCancel={onClose} onClick={event => { if (event.target === ref.current) onClose(); }} aria-labelledby="scene-title">
+    <div className="panel-heading"><span>PRÉVIA DECLARATIVA · SEM EXECUÇÃO</span><button autoFocus className="icon-button" aria-label="Fechar janela da cena" onClick={onClose}><Icon name="close" /></button></div>
+    <h2 id="scene-title">{scene.operation === 'activate' ? 'Modo apresentação' : 'Encerrar apresentação'}</h2>
+    <p>A sequência vem do catálogo de cenas. Nenhuma ação será enviada.</p>
+    <ol className="scene-steps">{plan.map(item => <li key={item.id}><span><strong>{names[item.id]}</strong><small>{item.pending ? 'Integração pendente' : 'Laboratório · controle bloqueado nesta interface'}</small></span><b>{item.action === 'turn_on' ? 'Ligar' : 'Desligar'}</b></li>)}</ol>
+    <div className="safety-note"><Icon name="lock" /> Controle físico desabilitado. A prévia não comprova estados reais.</div>
+    <button className="secondary-button" onClick={onClose}>Fechar prévia</button>
+  </dialog>;
+}
+export function MonitorTwo() {
+  const { snapshot } = usePresentation(); const [now, setNow] = useState(new Date()); const [scene, setScene] = useState<RoomScene | null>(null);
+  useEffect(() => { const timer = setInterval(() => { if (!document.hidden) setNow(new Date()); }, 1000); return () => clearInterval(timer); }, []);
+  const planned = devices.filter(device => device.integration === 'planned').length;
+  const connection = snapshot.connection.state === 'connected' ? (snapshot.mode === 'demo' ? 'Conexão simulada' : 'Fonte conectada') : snapshot.connection.state === 'reconnecting' ? 'Reconectando' : snapshot.connection.state === 'connecting' ? 'Conectando' : 'Sem fonte ao vivo';
+  return <main className="dashboard">
+    <header className="dashboard-header"><a className="dashboard-brand" href="/monitor/1" target="_blank" rel="noopener noreferrer" aria-label="Abrir Monitor 1"><span className="brand-emblem">J</span><span><h1>J.A.R.V.I.S.</h1><small>CONTROLE DA SALA TEMÁTICA</small></span></a><div className="header-context"><span className="demo-badge">{snapshot.mode === 'demo' ? 'DEMO' : 'SOMENTE LEITURA'}</span><span className="connection-label"><i className={snapshot.connection.state === 'connected' ? 'active' : ''} />{connection}</span></div><div className="dashboard-clock"><strong>{now.toLocaleTimeString('pt-BR')}</strong><small>{now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</small></div><DemoPanel /></header>
+    <div className="dashboard-body"><div className="dashboard-intro"><div><span className="eyebrow">VISÃO OPERACIONAL / MONITOR 02</span><h2>A sala, em perspectiva.</h2><p>Inventário e disponibilidade. Controle físico desabilitado nesta interface.</p></div><div className="last-update"><Icon name="clock" size={15} /><span>Última atualização<strong>{formatTime(snapshot.updatedAt)}{snapshot.updatedAt && snapshot.mode === 'demo' ? ' · DEMO' : ''}</strong></span></div></div>
+      <div className="summary-grid"><div><Icon name="monitor" /><span>Equipamentos cadastrados<strong>{String(devices.length).padStart(2, '0')}</strong></span><small>Catálogo canônico</small></div><div><Icon name="network" /><span>Integração de laboratório<strong>01</strong></span><small>Disponibilidade não consultada</small></div><div><Icon name="spark" /><span>Recursos planejados<strong>{String(planned).padStart(2, '0')}</strong></span><small>Sem integração homologada</small></div><div><Icon name="lock" /><span>Controle físico<strong className="summary-text">Bloqueado</strong></span><small>Nenhuma operação disponível</small></div></div>
+      <div className="dashboard-columns"><div className="equipment-column"><DeviceSection title="Monitores" icon="monitor" categories={['display']} /><DeviceSection title="Iluminação" icon="light" categories={['led_strip', 'light']} /><div className="compact-sections"><DeviceSection title="Climatização" icon="climate" categories={['climate']} /><DeviceSection title="Áudio" icon="audio" categories={['audio']} /><DeviceSection title="Sensores" icon="sensor" categories={['presence_sensor']} /></div></div>
+        <aside className="systems-column"><section className="dashboard-section intelligence-section"><div className="section-title"><Icon name="brain" /><h2>Inteligência artificial</h2><span>06</span></div><div className="voice-session"><span>SESSÃO DE VOZ <b>{snapshot.mode === 'demo' ? 'DEMO' : 'SEM TRANSPORTE'}</b></span><strong>{snapshot.voiceState}</strong><div className="signal-bars" aria-hidden="true">{Array.from({ length: 28 }, (_, i) => <i key={i} style={{ height: `${5 + Math.sin(i * 1.8) ** 2 * (8 + snapshot.amplitude * 24)}px` }} />)}</div><small>Amplitude {Math.round(snapshot.amplitude * 100)}% · {snapshot.mode === 'demo' ? 'simulada, sem microfone ou TTS' : 'nenhum áudio recebido'}</small></div><div className="service-list">{snapshot.services.map(service => <div className="service-row" key={service.id}><div><strong>{service.label}</strong><small>{service.detail}</small></div><span className={`status-label ${service.status}`}><i className={`status-dot ${service.status}`} />{labels[service.status]}</span></div>)}</div></section>
+          <section className="dashboard-section scenes-section"><div className="section-title"><Icon name="play" /><h2>Cenas da sala</h2><span>02</span></div><p className="section-note">Planejamento somente leitura. Visualize a sequência sem executar ações.</p>{scenes.map(item => <button className="scene-preview-button" key={item.id} onClick={() => setScene(item)}><span className="scene-number">{item.operation === 'activate' ? '01' : '02'}</span><span><strong>{item.operation === 'activate' ? 'Modo apresentação' : 'Encerrar apresentação'}</strong><small>{item.steps.length} etapas · prévia do plano</small></span><Icon name="arrow" size={17} /></button>)}</section>
+          <div className="dashboard-safety"><Icon name="lock" /><p><strong>Uma interface de informação.</strong>Sem acesso a credenciais, dispositivos, microfone ou execução de cenas. Status de DEMO são simulações.</p></div>
+        </aside></div>
+    </div><footer className="dashboard-footer"><span>J.A.R.V.I.S. / SALA TEMÁTICA UNIVERSITÁRIA</span><span>CATÁLOGO LOCAL · SEM TELEMETRIA FÍSICA</span></footer>{scene && <SceneDialog scene={scene} onClose={() => setScene(null)} />}
+  </main>;
+}

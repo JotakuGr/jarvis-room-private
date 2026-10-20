@@ -404,3 +404,20 @@ A seleção posterior do Qwen 3.5 4B mantém as fronteiras da consolidação.
 Regressão após essa troca: **831/831 testes offline**. O modelo menor foi
 preservado e pode ser escolhido explicitamente por `--llm-model`; não há
 fallback automático nem download durante a sessão.
+
+### Sprint 8 — frontend dual-monitor independente
+
+Implementação local em [`frontend/`](frontend/README.md), preservando o frontend
+original OpenJarvis. Monitor 1: sala virtual da referência aprovada e holograma
+dourado procedural com seis estados oficiais. Monitor 2: nove registros do catálogo,
+serviços desconhecidos, cenas em prévia e dados DEMO identificados.
+
+```bash
+cd projects/jarvis-room/frontend
+npm ci
+npm run dev
+```
+
+Abra `http://127.0.0.1:5174/monitor/1` e `http://127.0.0.1:5174/monitor/2` em janelas
+separadas. Sem acesso ao Home Assistant, microfone, TTS real ou controle físico.
+Build, testes e pendências estão no [relatório da Sprint 8](docs/reports/sprint-8-acceptance.md).
