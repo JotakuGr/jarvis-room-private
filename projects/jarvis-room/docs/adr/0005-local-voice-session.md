@@ -3,6 +3,11 @@
 Data: 2026-10-19. Base: `9ee93e94`, merge do PR #15.
 Status: implementado e testado offline; homologação acústica pendente.
 
+Registro da arquitetura inicial. A consolidação S7 atualiza retenção de modelos,
+política CUDA, seleção Ollama e limites da CLI no
+[ADR-0006](0006-resident-voice-workers.md); os resultados históricos abaixo
+permanecem como registro da decisão original.
+
 ## Decisão
 
 A voz usa uma CLI própria e contratos tipados. Não é uma fonte de

@@ -5,6 +5,12 @@ Status: implementação publicada e aprovada offline/local/CI;
 homologação acústica humana pendente.
 Nenhuma permissão física adicional. Nenhum PR ou merge automático.
 
+Este documento preserva os resultados históricos da S7 e da correção S7.1.
+A evolução CUDA/residente/LLM/TTS, o inventário atualizado e as novas evidências
+estão no [relatório de consolidação](sprint-7-consolidation.md).
+Use os comandos atuais do [guia GPU/LLM](../integrations/voice-gpu-ollama.md);
+os exemplos de inicialização abaixo registram a configuração da entrega original.
+
 ## Base e entrega incremental
 
 - Repositório: `JotakuGr/jarvis-room-private`.

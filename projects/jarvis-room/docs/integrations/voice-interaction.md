@@ -1,8 +1,12 @@
 # Comunicação por voz — instalação e homologação
 
 Implementação local da Sprint 7. Nenhuma permissão física adicional.
-Arquitetura e limites: [ADR-0005](../adr/0005-local-voice-session.md).
-Resultados efetivamente obtidos: [relatório S7](../reports/sprint-7-acceptance.md).
+Arquitetura inicial: [ADR-0005](../adr/0005-local-voice-session.md);
+evolução residente: [ADR-0006](../adr/0006-resident-voice-workers.md).
+Execução atual com RTX 4070, Ollama e TTS opcional:
+[guia GPU/LLM](voice-gpu-ollama.md).
+Resultados: [histórico S7/S7.1](../reports/sprint-7-acceptance.md) e
+[consolidação](../reports/sprint-7-consolidation.md).
 
 ## Diagnóstico passivo
 
@@ -52,8 +56,9 @@ uv pip install --python .venv/bin/python -r projects/jarvis-room/config/requirem
 PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli --diagnose
 ```
 
-STT e wake word não precisam de Torch; ele é utilizado pelo Kokoro. O fluxo
-força CPU e não pressupõe que a GTX 750 execute CUDA. Não instalar os extras
+STT e wake word não precisam de Torch; ele é utilizado pelo Kokoro. TTS e
+wake word usam CPU; STT aceita CPU ou CUDA explícita. A RTX 4070 atual foi
+inspecionada, sem presumir CUDA em outras máquinas. Não instalar os extras
 `full` de openWakeWord nem trocar o índice de todos os pacotes pelo de Torch.
 Os intervalos do arquivo são requisitos candidatos, não lock homologado.
 Registre versões efetivamente resolvidas antes da avaliação humana.
@@ -90,7 +95,10 @@ PY
 
 Na sessão, não há fallback para nomes remotos: o diretório STT deve conter
 `model.bin`, `config.json`, `tokenizer.json` e os demais arquivos do snapshot;
-Kokoro exige config, pesos e voz; wake word exige os três ONNX. Pacotes ou
+Kokoro exige config, pesos e voz; wake word exige os três ONNX e registro
+local de procedência/licenças. O script acima não cria esse registro: revise
+as condições e prepare `PROVENANCE.txt` antes de habilitar o detector.
+Pacotes ou
 assets incompletos resultam em erro/fallback, sem tentativa de download.
 
 ## Inicialização real
@@ -110,13 +118,16 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
   --tts-model-dir "$HOME/.local/share/jarvis-room/models/kokoro" \
   --voice pm_santa --speed 1.0 --volume 0.7 \
   --wake-model-dir "$HOME/.local/share/jarvis-room/models/wake" \
-  --llm
+  --wake-license-file "$HOME/.local/share/jarvis-room/models/wake/PROVENANCE.txt" \
+  --llm --llm-model qwen3.5:0.8b
 ```
 
 Adicionar `--input-device N --output-device M` com os índices do diagnóstico.
 Omitir `--llm` mantém perguntas conhecidas e planos sem inferência. O modelo
-Ollama existente `jarvis-dev-lite:latest` deve estar previamente disponível e
-continua sujeito à política local de memória; o comando não baixa/puxa modelo.
+Ollama selecionado deve estar previamente disponível e continua sujeito à
+política local de memória; o comando não baixa/puxa modelo. O inventário atual
+contém `qwen3.5:0.8b`, não `jarvis-dev-lite:latest`. Use `--diagnose-ollama`
+para conferir e selecione o nome exato com `--llm-model`.
 O worker conecta exclusivamente a `127.0.0.1:11434`, com configuração temporária
 sem MCP, ferramentas, telemetria ou memória persistente. Não herda
 `OLLAMA_HOST`, proxies ou a configuração OpenJarvis do terminal. O processo
@@ -157,16 +168,25 @@ homologa microfone, CUDA, modelo Whisper, wake word ou TTS.
 
 `cancelar`/`pare` fecham a janela; `sair`/`encerrar sessão` encerram a CLI.
 Ctrl+C/EOF encerram em qualquer etapa. Durante TTS não há escuta nem barge-in.
-Silêncio inicial, falha ou timeout exigem nova ativação. Sem detector/asset,
+Silêncio inicial permite outra tentativa dentro da janela/inatividade;
+falha de captura/STT ou timeout fecha a janela e exige nova ativação. O modelo
+STT residente é reutilizado até fechar a sessão ou falhar. Sem detector/asset,
 usa Enter; se o detector falhar durante execução, também muda para Enter.
 Não há flags `--execute`, `--enable-samsung`, token ou auditoria executora.
 
-Limites configuráveis: `--active-seconds` (1–300), `--capture-seconds` (1–30),
+Limites configuráveis: `--active-seconds` (1–300, padrão 300),
+`--inactivity-seconds` (1–300, padrão 30), `--capture-seconds` (1–30),
 `--operation-seconds` (1–120), `--wake-seconds` (1–60), `--max-turns` (1–20),
 `--cooldown-seconds` (0,3–5), `--silence-threshold` (1–32767),
 `--wake-threshold` (0,1–1). Números CLI usam ponto decimal. O prazo de captura
 tem tolerância de inicialização de processo de até 5 s; o supervisor mata
 PortAudio bloqueado. STT e LLM não utilizam transcrições fora da janela.
+
+STT CUDA, carga isolada, benchmark residente e seleção de LLM estão no
+[guia GPU/LLM](voice-gpu-ollama.md). A inicialização do STT tem prazo separado
+e antecede a janela ativa. A CLI mantém contexto informativo curto entre
+ativações próximas; a próxima ativação descarta o contexto vencido. Comandos,
+`limpar contexto`, cancelamento e encerramento não criam memória permanente.
 
 ## Testes automatizados offline
 
@@ -200,7 +220,8 @@ Nenhum teste desta seção está no CI e nenhum deve habilitar controle físico.
 4. Comparar tiny/base usando o mesmo corpus e os recursos medidos abaixo;
    repetir pelo menos três vezes e registrar mediana/p95, WER e taxa de
    intenção correta, incluindo trocas perigosas de ligar/desligar. Os workers
-   medem carga + inferência; não são medições de modelo residente.
+   do modo tiny/base medem carga + inferência; o novo modo `--resident-model-dir`
+   separa carga, primeira inferência e inferências seguintes.
 5. Ouvir `pm_santa`, `pm_alex`, `pf_dora` com nomes, LEDs, monitores, negações,
    números e frases da persona. Registrar inteligibilidade (palavras entendidas),
    naturalidade e preferência de pelo menos dois falantes brasileiros; não

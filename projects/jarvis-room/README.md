@@ -283,6 +283,10 @@ fora do escopo. As flags de confirmação física permanecem falsas.
 
 ### Sprint 7 — voz local, planejamento físico offline
 
+Marco original, preservado abaixo. Para a execução atual CUDA/residente/LLM,
+consulte a consolidação ao final desta seção e o
+[guia GPU/LLM](docs/integrations/voice-gpu-ollama.md).
+
 - CLI `room_voice_cli.py`, estados tipados e janela com múltiplos turnos.
 - Enter inicia a escuta; openWakeWord/ONNX CPU é opcional, com fallback manual.
   O modelo público detecta “hey Jarvis”; “Jarvis” isolado em português ainda
@@ -354,3 +358,43 @@ O teste real de transcrição relatado pelo operador motivou a correção; não
 foi repetido durante a regressão automatizada.
 
 Detalhes e limitações no [relatório da Sprint 7, seção S7.1](docs/reports/sprint-7-acceptance.md).
+
+### Consolidação Sprint 7 — STT residente e conversa local
+
+- STT com diretório local, CPU/int8 ou CUDA/float16 explícito e validação real
+  de compatibilidade. Modelo carregado uma vez por sessão, separado do microfone.
+- Captura e reprodução PortAudio em processos próprios; STT/TTS residentes
+  por pipes privados limitados, com timeout, cancelamento e encerramento.
+- Parser e os 20 testes S7.1 preservados. Voz mantém todos os planos em
+  `offline_preview`; não cria `OperatorTurn` ou autorização Samsung.
+- Ollama selecionável por nome instalado. Inventário atual: `qwen3.5:0.8b`.
+  Perguntas e acompanhamentos naturais com histórico volátil limitado, sem
+  ferramentas físicas nem reinterpretação da resposta como comando.
+- Kokoro brasileiro CPU residente opcional, voz masculina candidata `pm_santa`;
+  faltam Kokoro/Torch e pesos/vozes locais para síntese real. Fallback textual.
+- Wake word mantém Enter como fallback; faltam pacote/ONNX e avaliação de
+  “Jarvis” isolado. Modelo público “hey Jarvis” não comprova esse vocativo.
+- **830/830 testes offline: 734 preservados + 96 novos**. Ruff, whitespace e
+  CI aprovados. Mais 11 testes upstream de fala aprovados separadamente.
+- RTX 4070: carga isolada do Turbo comprovada em CUDA/FP16 (1,58 s de modelo,
+  2,13 s incluindo início do worker). Não representa latência de conversa.
+  Não houve nova captura, transcrição, geração LLM, síntese ou reprodução real.
+
+Para a homologação posterior de STT e LLM, ainda com saída textual:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli \
+  --stt-model-dir "$HOME/.local/share/jarvis-room/models/whisper-large-v3-turbo" \
+  --stt-device cuda --stt-compute-type float16 \
+  --llm --llm-model qwen3.5:0.8b --tts-backend none --metrics
+```
+
+Pressione Enter e aguarde a abertura efetiva do microfone. A janela permite
+vários turnos (até 300 s, 30 s de inatividade e 20 tentativas de captura),
+reutilizando STT entre ativações. `limpar contexto` descarta a conversa;
+Ctrl+C encerra. Controle físico permanece desabilitado.
+
+[Diagnósticos, instalação e comandos atuais](docs/integrations/voice-gpu-ollama.md),
+[arquitetura e fluxogramas](docs/adr/0006-resident-voice-workers.md) e
+[relatório consolidado para revisão](docs/reports/sprint-7-consolidation.md).
+Homologação de LLM real e qualidade acústica permanecem pendentes.
