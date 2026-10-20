@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import io
-import wave
+
+from openjarvis._audio_pcm import _frames_to_wav, _rms
 
 _SAMPLE_RATE = 16000
 _CHANNELS = 1
@@ -12,17 +13,6 @@ _SILENCE_THRESHOLD = 500  # RMS below this → silence
 _SILENCE_SECONDS = 1.5  # seconds of silence before auto-stop
 _STARTUP_SILENCE_SECONDS = 5.0  # give up early if speech never begins
 _MAX_RECORD_SECONDS = 30  # safety ceiling
-
-
-def _rms(data: bytes) -> float:
-    """Compute RMS amplitude of 16-bit PCM bytes."""
-    import struct
-
-    n = len(data) // 2
-    if n == 0:
-        return 0.0
-    shorts = struct.unpack(f"{n}h", data[: n * 2])
-    return (sum(s * s for s in shorts) / n) ** 0.5
 
 
 def record_until_silence(
@@ -78,16 +68,6 @@ def record_until_silence(
                     break
 
     return _frames_to_wav(frames, sample_rate)
-
-
-def _frames_to_wav(frames: list[bytes], sample_rate: int) -> bytes:
-    buf = io.BytesIO()
-    with wave.open(buf, "wb") as wf:
-        wf.setnchannels(_CHANNELS)
-        wf.setsampwidth(2)  # 16-bit
-        wf.setframerate(sample_rate)
-        wf.writeframes(b"".join(frames))
-    return buf.getvalue()
 
 
 def play_wav(audio: bytes, sample_rate: int = 24000) -> None:

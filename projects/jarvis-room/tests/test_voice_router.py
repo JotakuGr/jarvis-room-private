@@ -6,7 +6,6 @@ from threading import Event
 from unittest.mock import Mock, patch
 
 from jarvis_room import voice_router
-from jarvis_room.voice_contract import VoiceError
 from jarvis_room.voice_router import VoiceRouter
 from voice_fakes import OfflineVoiceTest
 
@@ -125,11 +124,14 @@ class VoiceRouterTests(OfflineVoiceTest):
 
     def test_llm_empty_or_invalid_answer(self):
         for answer in (None, "", " ", "\x1b"):
-            with self.subTest(answer=answer), self.assertRaises(VoiceError):
-                self.reply(
+            with self.subTest(answer=answer):
+                reply = self.reply(
                     "Explique ciência.",
                     VoiceRouter(Mock(answer=Mock(return_value=answer))),
                 )
+                self.assertEqual(reply.channel, "blocked")
+                self.assertIn("conversa local está indisponível", reply.text)
+                self.assertFalse(reply.physical_action_verified)
 
     def test_control_characters_filtered(self):
         reply = self.reply(

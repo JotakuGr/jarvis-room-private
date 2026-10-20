@@ -7,12 +7,14 @@ on:
       - 'projects/jarvis-room/**'
       - '.github/workflows/jarvis-room-unittest.yml'
       - 'src/openjarvis/speech/**'
+      - 'src/openjarvis/_audio_pcm.py'
   pull_request:
     branches: [main]
     paths:
       - 'projects/jarvis-room/**'
       - '.github/workflows/jarvis-room-unittest.yml'
       - 'src/openjarvis/speech/**'
+      - 'src/openjarvis/_audio_pcm.py'
 
 permissions:
   contents: read
@@ -38,3 +40,19 @@ jobs:
         run: python projects/jarvis-room/scripts/run_offline_tests.py
       - name: Verificar whitespace
         run: git diff --check HEAD^ HEAD
+      - name: Instalar somente Ruff para análise estática
+        run: python -m pip install ruff==0.16.9
+      - name: Ruff da infraestrutura de voz e seus contratos
+        run: >-
+          ruff check
+          projects/jarvis-room/src/jarvis_room/voice_*.py
+          projects/jarvis-room/src/jarvis_room/room_voice_cli.py
+          projects/jarvis-room/src/jarvis_room/room_intent.py
+          projects/jarvis-room/src/jarvis_room/conversation_adapter.py
+          projects/jarvis-room/src/jarvis_room/openjarvis_provider.py
+          projects/jarvis-room/src/jarvis_room/provider_chat_adapter.py
+          projects/jarvis-room/tests/test_voice_*.py
+          projects/jarvis-room/tests/test_room_natural_variants.py
+          src/openjarvis/_audio_pcm.py
+          src/openjarvis/speech/faster_whisper.py
+          src/openjarvis/speech/voice_io.py

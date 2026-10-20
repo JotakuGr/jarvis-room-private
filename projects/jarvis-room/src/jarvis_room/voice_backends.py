@@ -9,12 +9,13 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from threading import Event
 from typing import Any, Callable
 
-from .voice_contract import VoiceError, check_cancel
+from .voice_contract import VoiceError, check_cancel, public_error
 
 MAX_RESULT = 12 * 1024 * 1024
 PT_VOICES = ("pm_santa", "pm_alex", "pf_dora")
@@ -41,6 +42,72 @@ def local_file(directory: str, name: str) -> str:
     return str(path)
 
 
+def worker_environment(
+    operation: str, options: dict[str, Any], runtime: str
+) -> dict[str, str]:
+    """CUDA só para STT explicitamente selecionado; configuração antes do exec."""
+    from .voice_stt import STTSettings, cuda_library_paths
+
+    env = os.environ.copy()
+    env.update(
+        HF_HUB_OFFLINE="1",
+        TRANSFORMERS_OFFLINE="1",
+        HF_HUB_DISABLE_TELEMETRY="1",
+        DO_NOT_TRACK="1",
+        CUDA_VISIBLE_DEVICES="",
+        OMP_NUM_THREADS="2",
+        JARVIS_NUM_CTX="4096",
+    )
+    if (
+        operation in {"stt", "benchmark_stt", "resident_stt", "stt_capabilities"}
+        and options.get("device") == "cuda"
+    ):
+        settings = STTSettings(
+            **{
+                key: value
+                for key, value in options.items()
+                if key in STTSettings.__dataclass_fields__
+            }
+        )
+        env["CUDA_VISIBLE_DEVICES"] = str(settings.gpu_index)
+        libraries = cuda_library_paths()
+        env["LD_LIBRARY_PATH"] = os.pathsep.join(
+            libraries + list(filter(None, [env.get("LD_LIBRARY_PATH")]))
+        )
+    source = Path(__file__).resolve().parents[4] / "src"
+    env["PYTHONPATH"] = os.pathsep.join(
+        filter(
+            None,
+            (
+                str(Path(__file__).resolve().parents[1]),
+                str(source),
+                env.get("PYTHONPATH"),
+            ),
+        )
+    )
+    config = Path(runtime) / "config.toml"
+    config.write_text(VOICE_OLLAMA_CONFIG, encoding="utf-8")
+    env.update(
+        OPENJARVIS_HOME=runtime,
+        OPENJARVIS_CONFIG=str(config),
+        OLLAMA_HOST="http://127.0.0.1:11434",
+        NO_PROXY="127.0.0.1,localhost",
+        no_proxy="127.0.0.1,localhost",
+        JARVIS_VOICE_READY_FILE=str(Path(runtime) / "audio.ready"),
+        JARVIS_VOICE_PARENT_PID=str(os.getpid()),
+    )
+    for key in (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ):
+        env.pop(key, None)
+    return env
+
+
 class WorkerRunner:
     """Processos descartáveis limitam memória retida e permitem matar libs nativas."""
 
@@ -54,54 +121,13 @@ class WorkerRunner:
         on_ready: Callable[[], None] | None = None,
     ) -> Any:
         check_cancel(cancel)
-        env = os.environ.copy()
-        env.update(
-            HF_HUB_OFFLINE="1",
-            TRANSFORMERS_OFFLINE="1",
-            HF_HUB_DISABLE_TELEMETRY="1",
-            DO_NOT_TRACK="1",
-            CUDA_VISIBLE_DEVICES="",
-            OMP_NUM_THREADS="2",
-        )
-        # Origem local explícita também permite iniciar sem instalar o SDK.
-        source = Path(__file__).resolve().parents[4] / "src"
-        env["PYTHONPATH"] = os.pathsep.join(
-            filter(
-                None,
-                (
-                    str(Path(__file__).resolve().parents[1]),
-                    str(source),
-                    env.get("PYTHONPATH"),
-                ),
-            )
-        )
         with (
             tempfile.TemporaryDirectory(prefix="jarvis-voice-") as runtime,
             tempfile.TemporaryFile() as request,
             tempfile.TemporaryFile() as result,
         ):
-            # Não herdar configuração, memória, MCP ou destinos de rede de uma
-            # sessão de terminal. Logs privados do SDK morrem com este diretório.
-            config = Path(runtime) / "config.toml"
-            config.write_text(VOICE_OLLAMA_CONFIG, encoding="utf-8")
-            env.update(
-                OPENJARVIS_HOME=runtime,
-                OPENJARVIS_CONFIG=str(config),
-                OLLAMA_HOST="http://127.0.0.1:11434",
-                NO_PROXY="127.0.0.1,localhost",
-                no_proxy="127.0.0.1,localhost",
-            )
+            env = worker_environment(operation, options, runtime)
             ready = Path(runtime) / "audio.ready"
-            env["JARVIS_VOICE_READY_FILE"] = str(ready)
-            for key in (
-                "HTTP_PROXY",
-                "HTTPS_PROXY",
-                "ALL_PROXY",
-                "http_proxy",
-                "https_proxy",
-                "all_proxy",
-            ):
-                env.pop(key, None)
             request.write(
                 json.dumps({"operation": operation, "options": options}).encode()
             )
@@ -135,7 +161,12 @@ class WorkerRunner:
                 except (ValueError, UnicodeError) as exc:
                     raise VoiceError("invalid_worker_result") from exc
                 if not payload.get("ok"):
-                    raise VoiceError("local_backend_unavailable")
+                    raise VoiceError(
+                        public_error(
+                            VoiceError(payload.get("error", "")),
+                            "local_backend_unavailable",
+                        )
+                    )
                 return payload["result"]
             finally:
                 # Inclui Ctrl+C; nenhum resultado atrasado é reaproveitado.
@@ -144,7 +175,7 @@ class WorkerRunner:
                         os.killpg(process.pid, signal.SIGKILL)
                     except ProcessLookupError:
                         pass
-                process.wait()
+                process.wait(timeout=5)
 
 
 class ProcessMicrophone:
@@ -254,6 +285,7 @@ class OpenWakeWord:
         model: str = "hey_jarvis_v0.1.onnx",
         threshold: float = 0.6,
         device: int | None = None,
+        license_file: str | None = None,
     ) -> None:
         if (
             Path(model).name != model
@@ -263,6 +295,14 @@ class OpenWakeWord:
             raise ValueError("invalid_wake_config")
         for name in (model, "melspectrogram.onnx", "embedding_model.onnx"):
             local_file(model_dir, name)
+        if license_file is not None:
+            license_path = Path(license_file).expanduser().resolve()
+            if (
+                not license_path.is_file()
+                or not 0 < license_path.stat().st_size <= 65536
+                or not license_path.read_text(encoding="utf-8").strip()
+            ):
+                raise VoiceError("wake_license_unavailable")
         self.runner = runner
         self.options = {
             "model_dir": str(Path(model_dir).expanduser().resolve()),
@@ -287,10 +327,47 @@ class OpenWakeWord:
 
 
 class LocalChat:
-    def __init__(self, runner: WorkerRunner) -> None:
+    def __init__(
+        self,
+        runner: WorkerRunner,
+        *,
+        model: str | None = None,
+        max_tokens: int = 192,
+        context_tokens: int = 4096,
+    ) -> None:
         self.runner = runner
+        self.model, self.max_tokens, self.context_tokens = (
+            model,
+            max_tokens,
+            context_tokens,
+        )
+        self._lock = threading.Lock()
+        self._timed_out = False
+        if model is not None:
+            from .voice_llm import LLMSettings
+
+            LLMSettings(model, max_tokens=max_tokens, context_tokens=context_tokens)
 
     def answer(self, prompt: str, *, timeout: float, cancel: Event) -> str:
-        return self.runner.run(
-            "chat", {"prompt": prompt}, timeout=timeout, cancel=cancel
-        )
+        if self._timed_out:
+            raise VoiceError("llm_recovery_required")
+        if not self._lock.acquire(blocking=False):
+            raise VoiceError("llm_busy")
+        try:
+            options = {"prompt": prompt}
+            if self.model is not None:
+                options.update(
+                    model=self.model,
+                    max_tokens=self.max_tokens,
+                    context_tokens=self.context_tokens,
+                )
+            return self.runner.run("chat", options, timeout=timeout, cancel=cancel)
+        except VoiceError as exc:
+            if str(exc) == "operation_timeout":
+                self._timed_out = True
+            raise
+        finally:
+            self._lock.release()
+
+    def close(self) -> None:
+        pass

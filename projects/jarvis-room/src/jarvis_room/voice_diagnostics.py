@@ -2,12 +2,80 @@
 
 from __future__ import annotations
 
+import importlib.metadata
 import importlib.util
 import os
 import platform
 import shutil
 from pathlib import Path
 from typing import Any
+
+
+def dependency_versions() -> dict[str, str | None]:
+    result = {}
+    for name in (
+        "faster-whisper",
+        "ctranslate2",
+        "sounddevice",
+        "soundfile",
+        "numpy",
+        "kokoro",
+        "torch",
+        "openwakeword",
+        "onnxruntime",
+        "nvidia-cublas-cu12",
+        "nvidia-cudnn-cu12",
+    ):
+        try:
+            result[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            result[name] = None
+    return result
+
+
+def asset_status(directory: str | None, names: tuple[str, ...]) -> dict:
+    if directory is None:
+        return {"configured": False, "available": False}
+    root = Path(directory).expanduser().resolve()
+    files = {name: (root / name).is_file() for name in names}
+    return {
+        "configured": True,
+        "model": root.name,
+        "files": files,
+        "available": all(files.values()),
+    }
+
+
+def gpu_snapshot() -> dict:
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=index,name,memory.total,memory.used,memory.free",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=2,
+            check=True,
+        )
+        rows = []
+        for line in result.stdout.splitlines()[:32]:
+            index, name, total, used, free = [part.strip() for part in line.split(",")]
+            rows.append(
+                {
+                    "index": int(index),
+                    "name": name,
+                    "total_mib": int(total),
+                    "used_mib": int(used),
+                    "free_mib": int(free),
+                }
+            )
+        return {"status": "observed", "gpus": rows, "scope": "whole_gpu_not_process"}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {"status": "unavailable", "gpus": []}
 
 
 def audio_diagnostics(sd: Any = None) -> dict[str, Any]:
@@ -29,6 +97,7 @@ def audio_diagnostics(sd: Any = None) -> dict[str, Any]:
         "kernel": platform.release(),
         "python": platform.python_version(),
         "packages": packages,
+        "versions": dependency_versions(),
         "wsl": "microsoft" in platform.release().lower(),
         "wslg_directory": Path("/mnt/wslg").is_dir(),
         "wslg_pulse_socket": Path("/mnt/wslg/PulseServer").exists(),

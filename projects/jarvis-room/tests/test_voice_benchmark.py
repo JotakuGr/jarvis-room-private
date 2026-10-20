@@ -3,14 +3,55 @@
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
-from jarvis_room.voice_benchmark import evaluate, word_errors
+from jarvis_room.voice_benchmark import evaluate, evaluate_resident, word_errors
 from jarvis_room.voice_contract import VoiceError
+from jarvis_room.voice_stt import STTSettings
 from voice_fakes import OfflineVoiceTest, wav
 
 
 class VoiceBenchmarkTests(OfflineVoiceTest):
+    def test_resident_evaluation_initializes_once_and_separates_load_time(self):
+        root, manifest = self.fixture(
+            samples=[
+                {"wav": "speech.wav", "expected": "Liga os monitores"},
+                {"wav": "speech.wav", "expected": "Desliga os monitores"},
+            ]
+        )
+        transcriber = Mock()
+        transcriber.prepare.return_value = {"initialization_seconds": 1.5}
+        transcriber.transcribe.side_effect = [
+            "Liga os monitores",
+            "Desliga os monitores",
+        ]
+        transcriber.last_metrics = {"transcription_seconds": 0.2}
+        with patch(
+            "jarvis_room.voice_benchmark.ResidentTranscriber", return_value=transcriber
+        ):
+            result = evaluate_resident(manifest, STTSettings(str(root / "tiny")))
+        transcriber.prepare.assert_called_once()
+        self.assertEqual(transcriber.transcribe.call_count, 2)
+        transcriber.close.assert_called_once()
+        self.assertEqual(result["initialization"]["initialization_seconds"], 1.5)
+        self.assertEqual(result["records"][0]["transcription_seconds"], 0.2)
+        self.assertEqual(result["wer"], 0)
+
+    def test_resident_evaluation_closes_worker_on_invalid_audio(self):
+        root, manifest = self.fixture()
+        (root / "speech.wav").write_bytes(b"invalid")
+        transcriber = Mock()
+        with (
+            patch(
+                "jarvis_room.voice_benchmark.ResidentTranscriber",
+                return_value=transcriber,
+            ),
+            self.assertRaises(VoiceError),
+        ):
+            evaluate_resident(manifest, STTSettings(str(root / "tiny")))
+        transcriber.transcribe.assert_not_called()
+        transcriber.close.assert_called_once()
+
     def fixture(self, samples=None):
         root = Path(self.enterContext(tempfile.TemporaryDirectory()))
         for model in ("tiny", "base"):

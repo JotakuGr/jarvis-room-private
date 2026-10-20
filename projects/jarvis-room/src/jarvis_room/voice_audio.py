@@ -128,7 +128,7 @@ class SoundDeviceMicrophone:
     def capture(self, *, timeout: float, cancel: Event) -> bytes:
         # Reutiliza o formato e cálculo RMS do OpenJarvis; o gravador original
         # não oferece dispositivo, cancelamento nem leitura não bloqueante.
-        from openjarvis.speech.voice_io import _frames_to_wav, _rms
+        from openjarvis._audio_pcm import _frames_to_wav, _rms
 
         if not math.isfinite(timeout) or not 0 < timeout <= 30:
             raise ValueError("invalid_capture_timeout")
