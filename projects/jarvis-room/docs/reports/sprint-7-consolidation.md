@@ -5,6 +5,11 @@ Branch `feature/sprint7-voice-interaction`.
 Estado: implementação pronta para revisão técnica; **não é homologação final**.
 Controle físico por voz permanece desabilitado. Nenhum PR ou merge criado.
 
+Atualização posterior: o modelo preferido da sessão de voz passou a
+`qwen3.5:4b`, a pedido do operador. Os resultados e o inventário da consolidação
+abaixo são históricos; comandos atuais no
+[guia GPU/LLM](../integrations/voice-gpu-ollama.md).
+
 ## Resumo executivo
 
 STT aceita configuração CPU/CUDA explícita e mantém o modelo em um worker
@@ -482,3 +487,26 @@ não commitado após a última verificação. Não houve operação destrutiva.
   [vozes brasileiras](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md).
 - [openWakeWord/modelos/licenças](https://github.com/dscripka/openWakeWord).
 - [Piper atual](https://github.com/OHF-Voice/piper1-gpl).
+
+## Atualização posterior — Qwen 3.5 4B
+
+Por solicitação do operador, o modelo padrão da sessão de voz com `--llm`
+passou a `qwen3.5:4b`. A seleção explícita via `--llm-model` continua disponível;
+não há substituição automática se o modelo escolhido estiver ausente.
+Somente a CLI de voz mudou de padrão; os contratos Samsung permanecem intactos.
+
+O operador autorizou explicitamente o download. `ollama pull qwen3.5:4b`
+terminou com verificação SHA256 e sucesso. O diagnóstico local e `require_model`
+confirmaram a instalação e aceitação pela política existente:
+
+- Nome `qwen3.5:4b`, metadados 4.2B, GGUF Q4_K_M.
+- Tamanho 3.324.173.934 bytes, abaixo do orçamento de 4 GiB de pesos.
+- Digest `d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04`.
+- Modelo `qwen3.5:0.8b` preservado; nenhum modelo carregado no diagnóstico.
+- Contexto/saída da sessão mantidos em 4096/192 tokens por padrão.
+
+Regressão desta atualização: **831/831 testes offline**, baseline 830 mais
+um teste do novo padrão. O teste de modelo ausente continua exigindo rejeição,
+sem fallback para o menor. Ruff e `git diff --check` aprovados. Guias e README
+atualizados. Não houve geração LLM, captura, síntese ou ação física nessa troca;
+qualidade e coexistência de inferência continuam para homologação humana.

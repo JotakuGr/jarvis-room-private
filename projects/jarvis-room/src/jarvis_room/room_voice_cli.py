@@ -22,6 +22,7 @@ from .voice_contract import (
     VoiceState,
     public_error,
 )
+from .voice_llm import DEFAULT_VOICE_MODEL
 from .voice_resident import ResidentTranscriber
 from .voice_router import VoiceRouter
 from .voice_session import VoiceSession
@@ -150,7 +151,10 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--llm", action="store_true", help="Perguntas informativas pelo Ollama local"
     )
-    result.add_argument("--llm-model", help="Nome exato instalado no Ollama local")
+    result.add_argument(
+        "--llm-model",
+        help=f"Nome exato instalado no Ollama local; padrão: {DEFAULT_VOICE_MODEL}",
+    )
     result.add_argument("--llm-max-tokens", type=int, default=192)
     result.add_argument("--llm-context-tokens", type=int, default=4096)
     return result
@@ -237,7 +241,7 @@ def main() -> None:
                 args.wake_model_dir,
                 (args.wake_model, "melspectrogram.onnx", "embedding_model.onnx"),
             )
-            report["llm_selected"] = args.llm_model
+            report["llm_selected"] = args.llm_model or DEFAULT_VOICE_MODEL
             report["session_state"] = "IDLE"
             print(json.dumps(report, ensure_ascii=False, indent=2))
         except (VoiceError, ValueError, OSError) as exc:
@@ -339,7 +343,7 @@ def main() -> None:
 
         try:
             inventory = runner.run("ollama_diagnose", {}, timeout=10, cancel=Event())
-            selected = args.llm_model or "jarvis-dev-lite:latest"
+            selected = args.llm_model or DEFAULT_VOICE_MODEL
             require_model(
                 LLMSettings(
                     selected,

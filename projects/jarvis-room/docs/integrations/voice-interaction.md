@@ -119,15 +119,16 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
   --voice pm_santa --speed 1.0 --volume 0.7 \
   --wake-model-dir "$HOME/.local/share/jarvis-room/models/wake" \
   --wake-license-file "$HOME/.local/share/jarvis-room/models/wake/PROVENANCE.txt" \
-  --llm --llm-model qwen3.5:0.8b
+  --llm --llm-model qwen3.5:4b
 ```
 
 Adicionar `--input-device N --output-device M` com os índices do diagnóstico.
 Omitir `--llm` mantém perguntas conhecidas e planos sem inferência. O modelo
 Ollama selecionado deve estar previamente disponível e continua sujeito à
-política local de memória; o comando não baixa/puxa modelo. O inventário atual
-contém `qwen3.5:0.8b`, não `jarvis-dev-lite:latest`. Use `--diagnose-ollama`
-para conferir e selecione o nome exato com `--llm-model`.
+política local de memória; o comando não baixa/puxa modelo. O inventário
+histórico da consolidação continha `qwen3.5:0.8b`, não `jarvis-dev-lite:latest`.
+O modelo preferido agora é `qwen3.5:4b`, que exige instalação local.
+Use `--diagnose-ollama` para conferir e selecione o nome exato com `--llm-model`.
 O worker conecta exclusivamente a `127.0.0.1:11434`, com configuração temporária
 sem MCP, ferramentas, telemetria ou memória persistente. Não herda
 `OLLAMA_HOST`, proxies ou a configuração OpenJarvis do terminal. O processo

@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from .voice_contract import VoiceError
 
 OLLAMA_ENDPOINT = "http://127.0.0.1:11434"
+DEFAULT_VOICE_MODEL = "qwen3.5:4b"
 
 
 @dataclass(frozen=True, slots=True)

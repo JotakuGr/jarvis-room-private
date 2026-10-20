@@ -47,7 +47,7 @@ class VoiceCLIConfigurationTests(OfflineVoiceTest):
         self.assertEqual(result.exception.code, 2)
         chat.assert_not_called()
 
-    def test_legacy_default_does_not_silently_select_another_model(self):
+    def test_missing_preferred_model_does_not_silently_select_another_model(self):
         self.setup_cli(["--text-chat", "--llm"])
         runner = self.runner({"models": [{"name": "qwen3.5:0.8b", "size_bytes": 1}]})
         with (
@@ -56,6 +56,20 @@ class VoiceCLIConfigurationTests(OfflineVoiceTest):
         ):
             room_voice_cli.main()
         self.assertEqual(result.exception.code, 2)
+
+    def test_default_voice_model_selects_installed_qwen_4b(self):
+        self.setup_cli(["--text-chat", "--llm"])
+        runner = self.runner(
+            {"models": [{"name": "qwen3.5:4b", "size_bytes": 4_000_000_000}]}
+        )
+        with (
+            patch.object(room_voice_cli, "WorkerRunner", return_value=runner),
+            patch.object(room_voice_cli, "run_text_chat", return_value=0) as chat,
+            self.assertRaises(SystemExit) as result,
+        ):
+            room_voice_cli.main()
+        self.assertEqual(result.exception.code, 0)
+        self.assertEqual(chat.call_args.args[0].chat.model, "qwen3.5:4b")
 
     def test_stt_capability_diagnostic_does_not_load_model(self):
         output = self.setup_cli(

@@ -15,7 +15,7 @@ export PYTHONPATH=projects/jarvis-room/src:src
 ```bash
 .venv/bin/python -m jarvis_room.room_voice_cli --diagnose
 .venv/bin/python -m jarvis_room.room_voice_cli --diagnose-gpu
-.venv/bin/python -m jarvis_room.room_voice_cli --diagnose-ollama --llm-model qwen3.5:0.8b
+.venv/bin/python -m jarvis_room.room_voice_cli --diagnose-ollama --llm-model qwen3.5:4b
 .venv/bin/python -m jarvis_room.room_voice_cli --diagnose-stt \
   --stt-model-dir "$HOME/.local/share/jarvis-room/models/whisper-large-v3-turbo" \
   --stt-device cuda --stt-compute-type float16
@@ -90,17 +90,32 @@ terminar após a janela, respeitando seu timeout; nenhuma nova captura é aberta
 
 ## Ollama: inventário e conversa supervisionada
 
-Foi encontrado **somente `qwen3.5:0.8b`** no endpoint fixo
+Na inspeção histórica da consolidação foi encontrado **somente `qwen3.5:0.8b`**
+no endpoint fixo
 `http://127.0.0.1:11434`. A presença no inventário não mede qualidade de resposta.
 `jarvis-dev-lite:latest` não estava instalado. Não houve `ollama pull` nem
-seleção automática substituta. Repita o diagnóstico se o inventário mudar.
+seleção automática substituta naquela inspeção. A sessão agora prefere
+`qwen3.5:4b` quando `--llm` é habilitado, conforme solicitação do operador.
+O modelo precisa estar instalado; se estiver ausente, a CLI recusa iniciar a
+conversa e não substitui pelo 0.8B. Downloads continuam fora da sessão e exigem
+autorização explícita. Repita o diagnóstico para conferir o inventário atual.
 [Inventário Ollama](https://docs.ollama.com/api/tags).
+[Tag Qwen 3.5 4B](https://ollama.com/library/qwen3.5:4b).
+
+Após autorização explícita do operador, `ollama pull qwen3.5:4b` concluiu com
+verificação SHA256. O inventário local agora contém o 4B e o 0.8B preservado.
+4B: 3.324.173.934 bytes, GGUF Q4_K_M, metadados 4.2B, digest
+`d8b0f5e9760cd1682034f292d7ef72ec46f432149be0df7574bf2d6e92e38c04`.
+O diagnóstico confirmou `llm_selected=qwen3.5:4b` e a política existente de
+4 GiB aceitou o pacote. Isso não mede VRAM nem valida respostas reais.
+Contexto da sessão permanece 4096 tokens e saída 192 por padrão; não adotamos
+automaticamente o contexto máximo anunciado pelo modelo. Não houve inferência.
 
 Primeiro teste apenas texto, sem STT, microfone ou TTS:
 
 ```bash
 .venv/bin/python -m jarvis_room.room_voice_cli --text-chat \
-  --llm --llm-model qwen3.5:0.8b \
+  --llm --llm-model qwen3.5:4b \
   --llm-max-tokens 192 --llm-context-tokens 4096 --operation-seconds 60
 ```
 
@@ -114,7 +129,7 @@ Converse em seguida por voz, ainda sem TTS:
 .venv/bin/python -m jarvis_room.room_voice_cli \
   --stt-model-dir "$HOME/.local/share/jarvis-room/models/whisper-large-v3-turbo" \
   --stt-device cuda --stt-compute-type float16 \
-  --llm --llm-model qwen3.5:0.8b --tts-backend none --metrics
+  --llm --llm-model qwen3.5:4b --tts-backend none --metrics
 ```
 
 O agente OpenJarvis existente tem `tools=[]`, `context=False`; destino local,

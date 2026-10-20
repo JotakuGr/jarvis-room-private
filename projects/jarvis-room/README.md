@@ -367,7 +367,8 @@ Detalhes e limitações no [relatório da Sprint 7, seção S7.1](docs/reports/s
   por pipes privados limitados, com timeout, cancelamento e encerramento.
 - Parser e os 20 testes S7.1 preservados. Voz mantém todos os planos em
   `offline_preview`; não cria `OperatorTurn` ou autorização Samsung.
-- Ollama selecionável por nome instalado. Inventário atual: `qwen3.5:0.8b`.
+- Ollama selecionável por nome instalado; modelo preferido da sessão:
+  `qwen3.5:4b`, instalado após autorização explícita do operador.
   Perguntas e acompanhamentos naturais com histórico volátil limitado, sem
   ferramentas físicas nem reinterpretação da resposta como comando.
 - Kokoro brasileiro CPU residente opcional, voz masculina candidata `pm_santa`;
@@ -386,7 +387,7 @@ Para a homologação posterior de STT e LLM, ainda com saída textual:
 PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli \
   --stt-model-dir "$HOME/.local/share/jarvis-room/models/whisper-large-v3-turbo" \
   --stt-device cuda --stt-compute-type float16 \
-  --llm --llm-model qwen3.5:0.8b --tts-backend none --metrics
+  --llm --llm-model qwen3.5:4b --tts-backend none --metrics
 ```
 
 Pressione Enter e aguarde a abertura efetiva do microfone. A janela permite
@@ -398,3 +399,8 @@ Ctrl+C encerra. Controle físico permanece desabilitado.
 [arquitetura e fluxogramas](docs/adr/0006-resident-voice-workers.md) e
 [relatório consolidado para revisão](docs/reports/sprint-7-consolidation.md).
 Homologação de LLM real e qualidade acústica permanecem pendentes.
+
+A seleção posterior do Qwen 3.5 4B mantém as fronteiras da consolidação.
+Regressão após essa troca: **831/831 testes offline**. O modelo menor foi
+preservado e pode ser escolhido explicitamente por `--llm-model`; não há
+fallback automático nem download durante a sessão.
