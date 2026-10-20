@@ -19,7 +19,7 @@ class OpenJarvisConversation:
 
         with Jarvis(
             engine_key="ollama",
-            model="jarvis-dev-lite:latest",
+            model=self.model,
         ) as jarvis:
             return jarvis.ask(
                 prompt,
@@ -27,5 +27,10 @@ class OpenJarvisConversation:
                 tools=[],
                 context=False,
                 temperature=0.2,
-                max_tokens=192,
+                max_tokens=self.max_tokens,
             )
+
+    def __init__(
+        self, *, model: str = "jarvis-dev-lite:latest", max_tokens: int = 192
+    ) -> None:
+        self.model, self.max_tokens = model, max_tokens

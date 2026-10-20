@@ -2,15 +2,19 @@ name: JARVIS Room offline unittest
 
 on:
   push:
-    branches: [main, feature/sprint3-ha-laboratorio-readonly, feature/sprint4-samsung-ha-control, feature/sprint5-samsung-natural-commands, feature/sprint6-room-orchestration]
+    branches: [main, feature/sprint3-ha-laboratorio-readonly, feature/sprint4-samsung-ha-control, feature/sprint5-samsung-natural-commands, feature/sprint6-room-orchestration, feature/sprint7-voice-interaction]
     paths:
       - 'projects/jarvis-room/**'
       - '.github/workflows/jarvis-room-unittest.yml'
+      - 'src/openjarvis/speech/**'
+      - 'src/openjarvis/_audio_pcm.py'
   pull_request:
     branches: [main]
     paths:
       - 'projects/jarvis-room/**'
       - '.github/workflows/jarvis-room-unittest.yml'
+      - 'src/openjarvis/speech/**'
+      - 'src/openjarvis/_audio_pcm.py'
 
 permissions:
   contents: read
@@ -23,10 +27,32 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Testes locais sem Docker, HA, credenciais operacionais ou LLM
+      - name: Regressão offline com hardware, rede, modelos e subprocessos reais proibidos
         env:
-          PYTHONPATH: projects/jarvis-room/src
-        run: python -m unittest discover -s projects/jarvis-room/tests -p 'test_*.py' -v
+          PYTHONPATH: projects/jarvis-room/src:src
+          HF_HUB_OFFLINE: '1'
+          TRANSFORMERS_OFFLINE: '1'
+          CUDA_VISIBLE_DEVICES: ''
+        run: python projects/jarvis-room/scripts/run_offline_tests.py
+      - name: Verificar whitespace
+        run: git diff --check HEAD^ HEAD
+      - name: Instalar somente Ruff para análise estática
+        run: python -m pip install ruff==0.16.9
+      - name: Ruff da infraestrutura de voz e seus contratos
+        run: >-
+          ruff check
+          projects/jarvis-room/src/jarvis_room/voice_*.py
+          projects/jarvis-room/src/jarvis_room/room_voice_cli.py
+          projects/jarvis-room/src/jarvis_room/room_intent.py
+          projects/jarvis-room/src/jarvis_room/conversation_adapter.py
+          projects/jarvis-room/src/jarvis_room/openjarvis_provider.py
+          projects/jarvis-room/src/jarvis_room/provider_chat_adapter.py
+          projects/jarvis-room/tests/test_voice_*.py
+          projects/jarvis-room/tests/test_room_natural_variants.py
+          src/openjarvis/_audio_pcm.py
+          src/openjarvis/speech/faster_whisper.py
+          src/openjarvis/speech/voice_io.py

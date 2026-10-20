@@ -25,6 +25,8 @@ class RegistryChatAdapter:
         provider_id: str = LOCAL_PROVIDER_ID,
         *,
         recorder: EventRecorder | None = None,
+        model: str | None = None,
+        max_tokens: int = 192,
     ) -> None:
         if provider_id != LOCAL_PROVIDER_ID:
             raise ProviderUnavailable("Provedor não autorizado nesta fase.")
@@ -34,9 +36,20 @@ class RegistryChatAdapter:
         self._recorder = recorder
         # Habilitação somente nesta instância experimental.
         # Construir o registro não inicia nenhuma inferência.
-        self._registry = ProviderRegistry([
-            OpenJarvisLocalProvider(enabled=True),
-        ])
+        if model is None:
+            provider = OpenJarvisLocalProvider(enabled=True)
+        else:
+            from .voice_llm import LLMSettings
+
+            LLMSettings(model, max_tokens=max_tokens)
+            provider = OpenJarvisLocalProvider(
+                enabled=True,
+                conversation_options={
+                    "model": model,
+                    "max_tokens": max_tokens,
+                },
+            )
+        self._registry = ProviderRegistry([provider])
 
     def __call__(self, message: str) -> str:
         request = ProviderRequest(message)

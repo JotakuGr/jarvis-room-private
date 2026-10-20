@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import logging
 import os
 import tempfile
@@ -34,10 +35,14 @@ class FasterWhisperBackend(SpeechBackend):
         model_size: str = "base",
         device: str = "auto",
         compute_type: str = "float16",
+        local_files_only: bool = False,
+        in_memory_audio: bool = False,
     ) -> None:
         self._model_size = model_size
         self._device = device
         self._compute_type = compute_type
+        self._local_files_only = local_files_only
+        self._in_memory_audio = in_memory_audio
         self._model: Optional[WhisperModel] = None
         self._last_error: Optional[str] = None
 
@@ -91,6 +96,7 @@ class FasterWhisperBackend(SpeechBackend):
                 self._model_size,
                 device=self._device,
                 compute_type=compute_type,
+                **({"local_files_only": True} if self._local_files_only else {}),
             )
         self._last_error = None
         return self._model
@@ -101,36 +107,57 @@ class FasterWhisperBackend(SpeechBackend):
         *,
         format: str = "wav",
         language: Optional[str] = None,
+        beam_size: Optional[int] = None,
+        condition_on_previous_text: Optional[bool] = None,
+        vad_filter: Optional[bool] = None,
+        initial_prompt: Optional[str] = None,
     ) -> TranscriptionResult:
         """Transcribe audio bytes using Faster-Whisper."""
         try:
             model = self._ensure_model()
 
-            # Write audio to a temp file (faster-whisper needs a file path).
+            kwargs = {}
+            if language:
+                kwargs["language"] = language
+            for key, value in (
+                ("beam_size", beam_size),
+                ("condition_on_previous_text", condition_on_previous_text),
+                ("vad_filter", vad_filter),
+                ("initial_prompt", initial_prompt),
+            ):
+                if value is not None:
+                    kwargs[key] = value
+
+            # Legacy file path remains available; voice sessions use BytesIO.
             # delete=False + manual unlink: on Windows an open
             # NamedTemporaryFile holds an exclusive handle, so PyAV's reopen
             # of tmp.name inside model.transcribe() fails with EACCES.
             suffix = f".{format}" if not format.startswith(".") else format
-            tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            tmp = (
+                None
+                if self._in_memory_audio
+                else tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+            )
             try:
-                with tmp:
-                    tmp.write(audio)
-
-                kwargs = {}
-                if language:
-                    kwargs["language"] = language
-
-                segments_iter, info = model.transcribe(tmp.name, **kwargs)
-                segments_list = list(segments_iter)
+                if self._in_memory_audio:
+                    with io.BytesIO(audio) as source:
+                        segments_iter, info = model.transcribe(source, **kwargs)
+                        segments_list = list(segments_iter)
+                else:
+                    with tmp:
+                        tmp.write(audio)
+                    segments_iter, info = model.transcribe(tmp.name, **kwargs)
+                    segments_list = list(segments_iter)
             finally:
-                try:
-                    os.unlink(tmp.name)
-                except OSError as unlink_exc:
-                    logger.debug(
-                        "Could not remove temp audio file %s: %s",
-                        tmp.name,
-                        unlink_exc,
-                    )
+                if tmp is not None:
+                    try:
+                        os.unlink(tmp.name)
+                    except OSError as unlink_exc:
+                        logger.debug(
+                            "Could not remove temp audio file %s: %s",
+                            tmp.name,
+                            unlink_exc,
+                        )
         except Exception as exc:
             self._last_error = str(exc)
             raise
