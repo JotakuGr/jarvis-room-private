@@ -1,5 +1,7 @@
 # Comunicação por voz — instalação e homologação
 
+Operação atual: [S9.1 — vocativo obrigatório, pm_alex e escuta experimental](jarvis-wake-persona.md).
+
 Implementação local da Sprint 7. Nenhuma permissão física adicional.
 Arquitetura inicial: [ADR-0005](../adr/0005-local-voice-session.md);
 evolução residente: [ADR-0006](../adr/0006-resident-voice-workers.md).
@@ -134,40 +136,43 @@ sem MCP, ferramentas, telemetria ou memória persistente. Não herda
 `OLLAMA_HOST`, proxies ou a configuração OpenJarvis do terminal. O processo
 Ollama externo mantém sua própria configuração de GPU/retenção de memória.
 
-No modo manual, pressione Enter e aguarde `Microfone pronto. Pode falar.`;
+No modo manual, pressione Enter e aguarde `Microfone pronto. Comece com Jarvis.`;
 esse aviso confirma abertura do stream, após a inicialização do processo.
 Fale uma frase
 completa e faça uma pausa de 1,2 s. É um botão de início, não gravação enquanto
 a tecla está pressionada. No modo acústico, diga **“hey Jarvis”**, faça uma
-pausa e aguarde `Microfone pronto. Pode falar.` antes do pedido.
+pausa e aguarde `Microfone pronto. Comece com Jarvis.` antes do pedido.
 Uma frase dita junto à wake word
 pode ser descartada ao fechar o stream do detector. O vocativo **“Jarvis”
 isolado** ainda precisa ser homologado/modelado; não há garantia do modelo
 público para essa forma ou sotaques brasileiros.
 
-Na janela seguinte, não precisa repetir o vocativo:
+Desde S9.1, cada solicitação de voz exige o vocativo, inclusive na mesma janela:
 
 - `Jarvis, ligue os monitores.`
-- `Desligue os monitores.`
-- `Ligue os LEDs.`
-- `Desligue os alto-falantes.`
-- `Ativar modo apresentação.`
-- `Encerrar apresentação.`
-- `Ligue a TV Samsung.` (também somente planejamento offline por voz).
-- `Quem é você?` ou `Explique como funciona o som.`
+- `Jarvis, desligue os monitores.`
+- `Jarvis, ligue os LEDs.`
+- `Jarvis, desligue os alto-falantes.`
+- `Jarvis, ativar modo apresentação.`
+- `Jarvis, encerrar apresentação.`
+- `Jarvis, ligue a TV Samsung.` (também somente planejamento offline por voz).
+- `Jarvis, quem é você?` ou `Jarvis, explique como funciona o som.`
 
 Desde a correção S7.1, `liga`/`ligue` e `desliga`/`desligue` são formas
 explicitamente equivalentes para ações e alvos cadastrados. Por exemplo,
 `Jarvis, liga os monitores`, `Ligue os monitores.`, `Desliga os LEDs.` e
 `Liga o sistema de áudio.` geram os respectivos planos offline. Mantêm-se
-caixa, acentuação, pontuação simples, vocativo opcional e espaços já permitidos.
+caixa, acentuação, pontuação simples e espaços já permitidos no parser.
+O parser textual aceita vocativo opcional; a sessão de voz S9.1 exige Jarvis
+antes de encaminhar qualquer frase a esse parser.
 O alvo completo precisa ser um alias cadastrado: negações, múltiplas ações,
 frases incompletas e alvos desconhecidos continuam bloqueados. A mudança
 não amplia o parser autorizado da Samsung nem concede execução física por voz.
 Ela corrige uma limitação textual; não corrige erros de transcrição ou
 homologa microfone, CUDA, modelo Whisper, wake word ou TTS.
 
-`cancelar`/`pare` fecham a janela; `sair`/`encerrar sessão` encerram a CLI.
+`Jarvis, cancelar`/`Jarvis, pare` fecham a janela;
+`Jarvis, sair`/`Jarvis, encerrar sessão` encerram a CLI por voz.
 Ctrl+C/EOF encerram em qualquer etapa. Durante TTS não há escuta nem barge-in.
 Silêncio inicial permite outra tentativa dentro da janela/inatividade;
 falha de captura/STT ou timeout fecha a janela e exige nova ativação. O modelo
@@ -176,7 +181,7 @@ usa Enter; se o detector falhar durante execução, também muda para Enter.
 Não há flags `--execute`, `--enable-samsung`, token ou auditoria executora.
 
 Limites configuráveis: `--active-seconds` (1–300, padrão 300),
-`--inactivity-seconds` (1–300, padrão 30), `--capture-seconds` (1–30),
+`--inactivity-seconds` (1–120, padrão 30), `--capture-seconds` (1–30),
 `--operation-seconds` (1–120), `--wake-seconds` (1–60), `--max-turns` (1–20),
 `--cooldown-seconds` (0,3–5), `--silence-threshold` (1–32767),
 `--wake-threshold` (0,1–1). Números CLI usam ponto decimal. O prazo de captura
@@ -187,7 +192,7 @@ STT CUDA, carga isolada, benchmark residente e seleção de LLM estão no
 [guia GPU/LLM](voice-gpu-ollama.md). A inicialização do STT tem prazo separado
 e antecede a janela ativa. A CLI mantém contexto informativo curto entre
 ativações próximas; a próxima ativação descarta o contexto vencido. Comandos,
-`limpar contexto`, cancelamento e encerramento não criam memória permanente.
+`Jarvis, limpar contexto`, cancelamento e encerramento não criam memória permanente.
 
 ## Testes automatizados offline
 

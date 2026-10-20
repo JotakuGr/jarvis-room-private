@@ -3,6 +3,7 @@
 Guia operacional da consolidação S7. Estado e medições:
 [relatório técnico](../reports/sprint-7-consolidation.md).
 Arquitetura: [ADR-0006](../adr/0006-resident-voice-workers.md).
+Comportamento atual: [vocativo obrigatório e pm_alex S9.1](jarvis-wake-persona.md).
 Instalação de áudio/WSLg: [guia de voz](voice-interaction.md).
 Todos os comandos partem da raiz `openjarvis`, com o ambiente virtual existente:
 
@@ -69,9 +70,10 @@ Este comando abre microfone depois de Enter, mantendo o STT carregado:
   --tts-backend none --metrics
 ```
 
-Espere `Microfone pronto. Pode falar.`. Diga `Jarvis, liga os monitores`,
-depois `desliga os LEDs` e `ativar modo apresentação`. São planos offline;
-nenhum equipamento deve mudar. Continue sem repetir Jarvis na janela ativa.
+Espere `Microfone pronto. Comece com Jarvis.`. Diga `Jarvis, liga os monitores`,
+depois `Jarvis, desliga os LEDs` e `Jarvis, ativar modo apresentação`.
+São planos offline; nenhum equipamento deve mudar. Cada fala exige Jarvis,
+inclusive na janela ativa.
 Teste também negação, alvo desconhecido, comando composto, silêncio e Ctrl+C.
 Silêncio tenta outra captura dentro dos limites; ao voltar ao prompt, Enter
 abre outra janela e reutiliza o mesmo modelo residente.
@@ -82,7 +84,7 @@ Idioma fixo `pt`, `condition_on_previous_text=False`. Compare as opções com
 corpus consentido antes de escolher: nenhuma delas corrige automaticamente
 `liga` para `desliga` ou concede autorização. Não há evidência nova de WER.
 
-Limites CLI: janela 1–300 s (padrão 300), inatividade 1–300 s (padrão 30),
+Limites CLI: janela 1–300 s (padrão 300), inatividade 1–120 s (padrão 30),
 captura 1–30 s (padrão 15), operação 1–120 s (padrão 60), inicialização
 maior que zero até 300 s (padrão 120), até 20 tentativas por ativação.
 O limite efetivo é o menor prazo aplicável. Uma resposta TTS já iniciada pode
@@ -122,7 +124,8 @@ Primeiro teste apenas texto, sem STT, microfone ou TTS:
 Teste `Jarvis, como você está?`, `O que você consegue fazer?`,
 `Me explique o funcionamento da sala`, `Qual é a função do Home Assistant?`,
 `Pode explicar isso de outra forma?` e `E como isso funciona?`.
-`limpar contexto` apaga o histórico; `sair`, EOF e Ctrl+C encerram.
+`Jarvis, limpar contexto` apaga o histórico por voz; `Jarvis, sair`,
+EOF e Ctrl+C encerram (no chat textual, os comandos continuam sem vocativo).
 Converse em seguida por voz, ainda sem TTS:
 
 ```bash
@@ -152,15 +155,18 @@ Timeout LLM fecha o cliente e exige reiniciar a sessão antes de nova inferênci
 não implica interromper a geração já iniciada no serviço externo. Não alteramos
 parâmetros globais nem retenção do Ollama.
 
-## TTS brasileiro opcional: bloqueio atual e preparação
+## TTS brasileiro opcional: preparação e estado atual
 
-Kokoro/Torch e pesos/vozes **não estavam instalados**. `espeak-ng` está presente.
-A interface foi integrada e testada com fakes; síntese e audição reais pendem
-da preparação explícita do [guia de instalação](voice-interaction.md).
+Na auditoria histórica S7, Kokoro/Torch e pesos/vozes **não estavam instalados**.
+Na conferência S9.1, Kokoro/Torch CPU e assets pm_alex/pm_santa estão presentes;
+a nova voz padrão pm_alex/0,92/0,5 ainda requer audição.
+`espeak-ng` está presente. O operador relata sucesso de síntese/reprodução S9
+no Lief, posterior à auditoria original. Isso não homologa a nova voz S9.1.
+Para outras máquinas, consulte o [guia de instalação](voice-interaction.md).
 Não executar os comandos de download dessa preparação durante testes offline.
 
-Os candidatos brasileiros são `pm_santa` (preferência masculina inicial),
-`pm_alex` (masculina) e `pf_dora` (feminina), `lang_code='p'`/espeak `pt-br`.
+Os candidatos brasileiros são `pm_santa` (masculina),
+`pm_alex` (padrão masculino desde S9.1) e `pf_dora` (feminina), `lang_code='p'`/espeak `pt-br`.
 A lista do autor confirma idioma/vozes, mas não garante naturalidade:
 [Kokoro VOICES](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md).
 [Modelo Kokoro-82M: Apache 2.0](https://huggingface.co/hexgrad/Kokoro-82M).
@@ -168,16 +174,19 @@ Piper é alternativa futura, sem backend adicionado nesta entrega;
 [implementação atual](https://github.com/OHF-Voice/piper1-gpl) usa GPL-3.0 e
 cada voz exigiria verificar sua própria licença, idioma e arquivos.
 
-Depois de preparar os assets locais, adicione à sessão anterior:
+Com assets locais preparados, execute a sessão completa (manual por Enter):
 
 ```bash
---tts-backend kokoro \
---tts-model-dir "$HOME/.local/share/jarvis-room/models/kokoro" \
---voice pm_santa --speed 1.0 --volume 0.7 --output-device 0
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli \
+  --stt-model-dir "$HOME/.local/share/jarvis-room/models/whisper-large-v3-turbo" \
+  --stt-device cuda --stt-compute-type float16 \
+  --llm --llm-model qwen3.5:4b \
+  --tts-backend kokoro \
+  --tts-model-dir "$HOME/.local/share/jarvis-room/models/kokoro" \
+  --voice pm_alex --speed 0.92 --volume 0.5
 ```
 
-Essas linhas são argumentos adicionais ao comando completo anterior, não um
-comando isolado. TTS usa CPU, inicialização preguiçosa e modelo residente;
+TTS usa CPU, inicialização preguiçosa e modelo residente;
 reprodução roda separadamente. Saída validada PCM16 mono 24 kHz/até 30 s.
 Velocidade 0,5–2, volume 0–1. Falha de dependência, síntese, formato ou saída
 preserva texto. Não há captura durante TTS; cooldown padrão 0,8 s, configurável

@@ -3,6 +3,7 @@
 Integração da sessão S7 com as telas S8, sem controle físico por voz ou navegador.
 [Resultados e pendências](../reports/sprint-9-acceptance.md).
 [Contrato v2](presentation-events.md).
+[Operação atual S9.1: vocativo obrigatório e pm_alex](jarvis-wake-persona.md).
 [Controles supervisionados futuros](supervised-physical-automation.md).
 
 ## Arquitetura
@@ -10,7 +11,11 @@ Integração da sessão S7 com as telas S8, sem controle físico por voz ou nave
 ```mermaid
 flowchart TD
     M[Microfone em processo PortAudio] --> S[Faster-Whisper residente CPU ou CUDA]
-    S --> R[VoiceRouter determinístico primeiro]
+    S --> G{Jarvis inicial obrigatório}
+    G -->|Sem nome: descarte silencioso| I[IDLE]
+    G -->|Só nome| F[Cumprimento determinístico]
+    G -->|Pedido aceito| R[VoiceRouter determinístico primeiro]
+    F --> V
     R --> P[Orquestrador S6: offline_preview]
     R --> O[Adaptador OpenJarvis existente: Ollama sem ferramentas]
     P --> V[VoiceSession real]
@@ -73,7 +78,7 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
 ```
 
 Enter ativa a janela. Aguarde o aviso de microfone efetivamente aberto. Continue
-os turnos sem repetir Jarvis; STT permanece residente. Ctrl+C/EOF encerra a CLI;
+os turnos começando sempre com Jarvis; STT permanece residente. Ctrl+C/EOF encerra a CLI;
 Ctrl+C no terminal 1 encerra o backend e remove apenas seu próprio socket.
 SIGTERM também encerra o backend. Não iniciar várias CLIs de voz por monitor.
 
@@ -122,11 +127,12 @@ o diretório deve pertencer ao usuário e ter 0700. O proxy usa a porta padrão 
 
 ## TTS e pulsação
 
-Neste ambiente faltam **Kokoro, Torch e os assets locais**. `espeak-ng` está
-disponível. Não foram instalados ou baixados modelos nesta sprint. Siga a
-preparação explícita do [guia S7](voice-interaction.md) quando autorizada e
-registre revisão/licença dos arquivos. Voz candidata inicial `pm_santa`, pipeline
-brasileiro `p`; naturalidade e pronúncia ainda exigem audição.
+Na auditoria original S9 faltavam Kokoro/Torch e assets. Na conferência
+S9.1 eles estão presentes no Lief: Kokoro 0.9.4, Torch 2.14.1+cpu,
+config/pesos e tensores pm_alex/pm_santa locais. A presença foi verificada
+sem síntese/reprodução. A nova voz padrão é **pm_alex**, pipeline brasileiro
+`p`, velocidade 0,92 e volume 0,5. A audição da nova configuração está pendente.
+Não houve downloads ou instalações nesta implementação.
 
 Depois de preparar dependências e arquivos, a sessão supervisionada com TTS é:
 
@@ -136,13 +142,16 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
   --stt-device cuda --stt-compute-type float16 \
   --llm --llm-model qwen3.5:4b --presentation \
   --tts-backend kokoro --tts-model-dir "$HOME/.local/share/jarvis-room/models/kokoro" \
-  --voice pm_santa --speed 1.0 --volume 0.7 --metrics
+  --voice pm_alex --speed 0.92 --volume 0.5 --metrics
 ```
 
 `tts_prerequisites` verifica pacotes, espeak e arquivos sem carregar modelo.
 Ausência de dependência preserva texto e disponibilidade negativa no dashboard.
 Configuração, pesos e tensor de voz devem estar completos/localmente presentes.
 Velocidade 0,5–2, volume 0–1; dispositivo via `--output-device N` após diagnóstico.
+O nome escrito J.A.R.V.I.S. é preparado como Jarvis somente para TTS.
+Cada pedido de voz exige Jarvis inicial. Para o modo sem Enter, consulte o
+[guia experimental completo](jarvis-wake-persona.md).
 Somente abrir a saída confirma que é utilizável; arquivo existente não comprova
 síntese válida. Falhas de modelo/dispositivo têm fallback sem indicar fala ativa.
 

@@ -323,7 +323,8 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
 ```
 
 Pressione Enter e aguarde `Microfone pronto. Pode falar.`. Fale o pedido,
-faça uma pausa e continue sem repetir o vocativo dentro da janela ativa.
+faça uma pausa e comece cada novo pedido com Jarvis, inclusive na janela ativa
+(regra atual S9.1).
 `sair`, EOF ou Ctrl+C encerram. `--wake-model-dir` habilita o detector
 experimental; `--llm` habilita somente perguntas informativas pelo Ollama local.
 
@@ -392,7 +393,7 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
 
 Pressione Enter e aguarde a abertura efetiva do microfone. A janela permite
 vários turnos (até 300 s, 30 s de inatividade e 20 tentativas de captura),
-reutilizando STT entre ativações. `limpar contexto` descarta a conversa;
+reutilizando STT entre ativações. `Jarvis, limpar contexto` descarta a conversa por voz;
 Ctrl+C encerra. Controle físico permanece desabilitado.
 
 [Diagnósticos, instalação e comandos atuais](docs/integrations/voice-gpu-ollama.md),
@@ -454,3 +455,31 @@ alimenta os dois monitores. Sem sessão, os serviços de voz ficam indisponívei
 [relatório da Sprint 9](docs/reports/sprint-9-acceptance.md).
 Sem comandos de push, PR ou merge pelo agente. O relatório distingue a revisão
 publicada externamente dos complementos locais. Controle físico por voz/UI permanece bloqueado.
+
+
+### Sprint 9.1 — vocativo obrigatório, persona e pm_alex
+
+Cada solicitação de voz exige **Jarvis no início**. Fala sem o nome ou com o
+nome no meio é descartada antes do roteador, LLM, TTS e publicação da conversa.
+`Jarvis` isolado responde **“Sim, senhor. Em que posso ajudá-lo?”**, sem Ollama,
+e volta à espera. Não há dispensa de vocativo nos turnos seguintes.
+
+Padrão da aplicação: **pm_alex**, velocidade **0,92**, volume **0,5**, Kokoro
+CPU brasileiro. O texto escrito continua J.A.R.V.I.S.; só a preparação da
+fala transforma o nome em Jarvis. pm_santa continua selecionável. Persona
+original calma, técnica e educada; sem imitação/clonagem ou confirmação física.
+
+`--continuous-experimental` habilita VAD de energia + o único STT residente,
+sem Enter por chamada. É uma alternativa experimental com gaps e consumo a
+medir, não detector acústico homologado de Jarvis isolado. Ctrl+C desliga o
+microfone e libera recursos. Durante espera passiva, o holograma fica IDLE;
+amp real apenas durante reprodução PCM. Não mudou a cena visual ou o SSE.
+
+Kokoro/Torch e assets locais estão agora presentes; o operador relata sucesso
+anterior de STT/LLM/TTS/frontend no Lief. A nova voz e a escuta experimental
+aguardam homologação específica. Sem inferência, áudio ou equipamentos reais
+na regressão: **920 Python**, **52 frontend**, **6 E2E** aprovados.
+
+[Comandos completos no Lief, comparação de vozes e testes de falsos positivos](docs/integrations/jarvis-wake-persona.md).
+[Relatório da Sprint 9.1](docs/reports/sprint-9-1-acceptance.md).
+Controle físico continua em planejamento offline. Sem push, merge ou PR automático.

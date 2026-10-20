@@ -1,5 +1,10 @@
 # Sprint 9 — integração da voz com os dois monitores
 
+**Atualização posterior S9.1:** veja o [relatório próprio](sprint-9-1-acceptance.md)
+e o [guia operacional atual](../integrations/jarvis-wake-persona.md).
+O operador informou testes reais bem-sucedidos da S9 no Lief após esta entrega;
+o registro abaixo preserva o estado observado originalmente.
+
 Data: **20/10/2026, America/Bahia**.
 Branch: `feature/sprint9-voice-frontend-integration`.
 Estado: implementação e verificações offline concluídas; homologação real
