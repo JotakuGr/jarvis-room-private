@@ -47,6 +47,7 @@ describe('v2 presentation contract', () => {
     expect(source.receive(event(2, 'lab_observation', { entityId: 'input_boolean.jarvis_lab_light', state: 'on', status: 'connected' }))).toBe(true);
     expect(source.getSnapshot().labObservation?.state).toBe('on');
     expect(source.getSnapshot().devices.room_main_lights.status).toBe('planned');
+    expect(source.receive(event(3, 'sensor_reading', { sensorId: 'presence_sensor', kind: 'presence', value: true, unit: null }))).toBe(false);
     expect(source.receive(event(3, 'lab_observation', { entityId: 'switch.tv', state: 'on', status: 'connected' }))).toBe(false);
   });
   it('accepts bounded opt-in conversation as text without executing model contents', () => {

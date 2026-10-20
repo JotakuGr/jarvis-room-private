@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import os
 import select
 import signal
@@ -137,7 +138,13 @@ class ResidentWorker:
                 raise VoiceError("ipc_response_mismatch")
             if "event" not in reply:
                 break
-            if self.kind != "playback" or set(reply) != {"id", "event"}:
+            if self.kind != "playback" or set(reply) != {"id", "event", "emittedAt"}:
+                raise VoiceError("ipc_invalid_message")
+            emitted = reply["emittedAt"]
+            if type(emitted) not in (int, float) or not math.isfinite(emitted):
+                raise VoiceError("ipc_invalid_message")
+            age = time.monotonic() - emitted
+            if age < -0.1:
                 raise VoiceError("ipc_invalid_message")
             event = reply["event"]
             from .presentation_contract import validate_payload
@@ -149,6 +156,13 @@ class ResidentWorker:
             ):
                 raise VoiceError("ipc_invalid_message")
             validate_payload(event["type"], event["payload"])
+            if age > 0.5 and (
+                event["type"] == "voice_amplitude"
+                and event["payload"]["amplitude"] > 0
+                or event["type"] == "playback_status"
+                and event["payload"]["state"] == "playing"
+            ):
+                continue  # Progresso antigo não é animação atual. Zero/fim passam.
             if on_event is not None:
                 on_event(event)
         check_cancel(cancel)

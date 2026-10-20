@@ -9,6 +9,7 @@ import os
 import signal
 import struct
 import sys
+import time
 from pathlib import Path
 from threading import Event
 
@@ -367,7 +368,13 @@ def resident_main(kind: str, reader=None, writer=None) -> None:
 
                         def progress(event):
                             writer.write(
-                                encode_frame({"id": identifier, "event": event})
+                                encode_frame(
+                                    {
+                                        "id": identifier,
+                                        "event": event,
+                                        "emittedAt": time.monotonic(),
+                                    }
+                                )
                             )
                             writer.flush()
 

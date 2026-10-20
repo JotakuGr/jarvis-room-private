@@ -289,16 +289,19 @@ class PlaybackProtocolTests(OfflineVoiceTest):
         worker.pipe.receive.side_effect = [
             {
                 "id": 1,
+                "emittedAt": 100,
                 "event": {"type": "playback_status", "payload": {"state": "playing"}},
             },
             {
                 "id": 1,
+                "emittedAt": 100,
                 "event": {"type": "voice_amplitude", "payload": {"amplitude": 0.2}},
             },
             {"id": 1, "ok": True, "result": None},
         ]
         emit = Mock()
-        worker._exchange("play", {}, timeout=1, cancel=Event(), on_event=emit)
+        with patch("jarvis_room.voice_resident.time.monotonic", return_value=100):
+            worker._exchange("play", {}, timeout=1, cancel=Event(), on_event=emit)
         self.assertEqual(emit.call_count, 2)
 
     def test_progress_cannot_publish_commands_or_raw_audio(self):
@@ -306,10 +309,39 @@ class PlaybackProtocolTests(OfflineVoiceTest):
         worker.pipe = Mock()
         worker.pipe.receive.return_value = {
             "id": 1,
+            "emittedAt": 100,
             "event": {"type": "execute", "payload": {"script": "x"}},
         }
         with self.assertRaises(VoiceError):
             worker._exchange("play", {}, timeout=1, cancel=Event(), on_event=Mock())
+
+    def test_delayed_progress_is_discarded_but_zero_is_always_delivered(self):
+        worker = ResidentWorker("playback", {})
+        worker.pipe = Mock()
+        worker.pipe.receive.side_effect = [
+            {
+                "id": 1,
+                "emittedAt": 99,
+                "event": {"type": "playback_status", "payload": {"state": "playing"}},
+            },
+            {
+                "id": 1,
+                "emittedAt": 99,
+                "event": {"type": "voice_amplitude", "payload": {"amplitude": 0.8}},
+            },
+            {
+                "id": 1,
+                "emittedAt": 99,
+                "event": {"type": "voice_amplitude", "payload": {"amplitude": 0}},
+            },
+            {"id": 1, "ok": True, "result": None},
+        ]
+        emit = Mock()
+        with patch("jarvis_room.voice_resident.time.monotonic", return_value=100):
+            worker._exchange("play", {}, timeout=1, cancel=Event(), on_event=emit)
+        emit.assert_called_once_with(
+            {"type": "voice_amplitude", "payload": {"amplitude": 0}}
+        )
 
     def test_worker_emits_framed_progress_on_same_private_channel(self):
         requests = [
