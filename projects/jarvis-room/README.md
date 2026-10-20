@@ -452,4 +452,5 @@ alimenta os dois monitores. Sem sessão, os serviços de voz ficam indisponívei
 [contrato v2](docs/integrations/presentation-events.md),
 [controles futuros supervisionados](docs/integrations/supervised-physical-automation.md) e
 [relatório da Sprint 9](docs/reports/sprint-9-acceptance.md).
-Sem push, PR ou merge automáticos. Controle físico por voz/UI permanece bloqueado.
+Sem comandos de push, PR ou merge pelo agente. O relatório distingue a revisão
+publicada externamente dos complementos locais. Controle físico por voz/UI permanece bloqueado.

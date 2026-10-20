@@ -4,7 +4,8 @@ Data: **20/10/2026, America/Bahia**.
 Branch: `feature/sprint9-voice-frontend-integration`.
 Estado: implementação e verificações offline concluídas; homologação real
 de voz, GPU, Kokoro e HA continua pendente. **Não é aceite acústico final.**
-Sem push, PR ou merge. Nenhuma execução física habilitada.
+Não executei comandos de push, PR ou merge. Nenhuma execução física habilitada.
+Uma atualização remota externa foi detectada na conferência final; detalhes em Git/CI.
 
 ## Resultado executivo
 
@@ -242,8 +243,17 @@ O aviso de chunk Three.js ~941 kB minificado continua conhecido; não é falha d
 build nem nova medição de desempenho GPU.
 
 Ruff passou nos módulos/testes de voz e apresentação. `git diff --check` passou.
-Workflows foram atualizados/preparados, mas **nenhuma CI remota foi disparada**,
-pois o operador proibiu push automático. Não há link novo de CI desta branch.
+Workflows foram atualizados/preparados. Não executei push nem solicitei execução
+remota. Na conferência final, a referência de acompanhamento já apontava para
+`c1325620`, com reflog `update by push` às 13:05:29 de 20/10/2026 (America/Bahia),
+fora dos comandos desta sessão. Não há hooks Git instalados. Preservei essa
+atualização e consultei os resultados apenas para informar o estado real.
+
+[CI Python de c1325620](https://github.com/JotakuGr/jarvis-room-private/actions/runs/39454354175):
+884 testes em 2,662 s e Ruff aprovados.
+[CI de apresentação de c1325620](https://github.com/JotakuGr/jarvis-room-private/actions/runs/39454354292):
+aprovada, incluindo seis E2E em 5,2 s. Essas execuções **não cobrem os commits
+locais posteriores**, que têm 885 testes Python e verificações locais aprovadas.
 
 ## Evidência de transporte realmente executada
 
@@ -375,12 +385,15 @@ instalado/permanente.
 ## Git
 
 - Base/main: `b8b4e318`, árvore inicial limpa, fetch confirmado.
-- Branch local: `feature/sprint9-voice-frontend-integration`, sem upstream de
-  publicação remota.
+- Branch: `feature/sprint9-voice-frontend-integration`. Ao conferir o estado final,
+  havia upstream `origin/feature/sprint9-voice-frontend-integration` em `c1325620`,
+  criado/atualizado por push externo aos comandos do agente.
 - Commit de implementação: `c1325620`, 29 arquivos, ponte/voz/UI/testes/workflows.
 - Correção `c23feb14`: descartar energia atrasada no pipe e fechar o contrato v2
   para observações não habilitadas.
-- A documentação é registrada num commit local seguinte; SHA final informado na entrega para evitar autorreferência.
-- Nenhum push, PR ou merge nesta solicitação. Nenhum modelo baixado/substituído,
+- Documentação local: `75077617`. Este ajuste do relatório registra a atualização
+  externa observada; o SHA documental final é informado na entrega.
+- `c23feb14`, `75077617` e este ajuste não foram publicados pelo agente.
+- Nenhum comando de push, PR ou merge executado pelo agente. Nenhum modelo baixado/substituído,
   nenhum token adicionado ao repositório e nenhuma ação física executada.
 - A entrega informa o estado da árvore após a última verificação.
