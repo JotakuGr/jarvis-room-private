@@ -144,6 +144,17 @@ Na janela seguinte, não precisa repetir o vocativo:
 - `Ligue a TV Samsung.` (também somente planejamento offline por voz).
 - `Quem é você?` ou `Explique como funciona o som.`
 
+Desde a correção S7.1, `liga`/`ligue` e `desliga`/`desligue` são formas
+explicitamente equivalentes para ações e alvos cadastrados. Por exemplo,
+`Jarvis, liga os monitores`, `Ligue os monitores.`, `Desliga os LEDs.` e
+`Liga o sistema de áudio.` geram os respectivos planos offline. Mantêm-se
+caixa, acentuação, pontuação simples, vocativo opcional e espaços já permitidos.
+O alvo completo precisa ser um alias cadastrado: negações, múltiplas ações,
+frases incompletas e alvos desconhecidos continuam bloqueados. A mudança
+não amplia o parser autorizado da Samsung nem concede execução física por voz.
+Ela corrige uma limitação textual; não corrige erros de transcrição ou
+homologa microfone, CUDA, modelo Whisper, wake word ou TTS.
+
 `cancelar`/`pare` fecham a janela; `sair`/`encerrar sessão` encerram a CLI.
 Ctrl+C/EOF encerram em qualquer etapa. Durante TTS não há escuta nem barge-in.
 Silêncio inicial, falha ou timeout exigem nova ativação. Sem detector/asset,

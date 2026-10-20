@@ -175,3 +175,116 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
 
 Enter é usado automaticamente quando não há detector. Omitir flags opcionais
 mantém o fallback manual/textual. `sair`, EOF e Ctrl+C encerram a sessão.
+
+## Sprint 7.1 — correção de comandos naturais em português brasileiro
+
+### Causa e escopo
+
+O operador informou um teste com Faster-Whisper Large-v3 Turbo,
+CTranslate2/CUDA FP16 no ambiente Ryzen 7 7800X3D/RTX 4070 12 GB:
+idioma `pt`, transcrição `Jarvis, liga os monitores`, tempo de 0,38 s e
+intenção bloqueada como `unsupported_command`. São evidências fornecidas
+pelo operador, não medições ou homologação reproduzidas nesta correção.
+
+A causa estava na lista de verbos do parser determinístico: a revisão da
+Sprint 7 aceitava apenas `ligue` e `desligue`. A normalização preserva
+`liga`/`desliga`, por isso uma transcrição semanticamente correta não
+encontrava verbo autorizado. Não era necessário criar outro interpretador,
+alterar o reconhecimento de fala nem delegar comandos físicos ao LLM.
+
+Na inspeção inicial, a alteração local já continha as duas variantes novas;
+ela foi preservada e consolidada com testes, documentação e formatação Ruff.
+A única mudança funcional em relação à revisão S7 é a inclusão explícita de
+`("liga ", "turn_on")` e `("desliga ", "turn_off")` junto às duas formas
+existentes. Uma comparação de AST, removendo somente essas duas entradas,
+confirmou equivalência ao código anterior; as demais alterações do parser
+são comentário e formatação.
+
+### Arquivos modificados
+
+- `src/jarvis_room/room_intent.py`: quatro formas explícitas, com o mesmo
+  parser e a mesma correspondência completa de grupos/aliases e capacidades.
+- `tests/test_room_natural_variants.py`: 20 testes novos, reutilizando
+  `OfflineVoiceTest`, WAVs, microfone, STT/TTS falsos e relógio virtual existentes.
+- `docs/integrations/voice-interaction.md`: formas aceitas e limites textuais.
+- `README.md` da Sala Temática: comportamento e resultado da regressão S7.1.
+- Este relatório: diagnóstico, exemplos, verificações e pendências da correção.
+
+Os caminhos acima são relativos a `projects/jarvis-room/`. Foram inspecionados
+também `room_text.py`, `room_device_registry.py`, `room_responses.py`,
+`voice_router.py` e os testes existentes. Suas implementações não precisaram
+de alteração. CUDA, Whisper e sintetizador de voz permaneceram intactos.
+
+### Exemplos antes e depois
+
+Comparação executada offline com o parser original da revisão S7 e o parser
+atual, usando somente os arquivos locais do catálogo:
+
+| Frase | Antes (S7) | Depois (S7.1) |
+| --- | --- | --- |
+| `Jarvis, liga os monitores` | `blocked / unsupported_command` | `group_control / turn_on / monitores` |
+| `Jarvis, desliga os monitores` | `blocked / unsupported_command` | `group_control / turn_off / monitores` |
+| `Jarvis, ligue os monitores.` | `group_control / turn_on / monitores` | Mesmo resultado |
+
+As formas com/sem vocativo, `liga`/`ligue` e `desliga`/`desligue` produzem os
+mesmos campos semânticos. O campo `phrase` continua guardando a frase
+normalizada, incluindo o verbo recebido; não houve canonicalização adicional.
+Grupos `monitores`, `leds` e `audio` e todos os aliases individuais existentes
+com capacidade de ligar/desligar foram cobertos. Nenhum alias foi inventado.
+
+### Segurança e integração
+
+A exigência de alvo completo continua bloqueando `não liga`, `não desliga`,
+`liga os monitores e desliga os LEDs`, dispositivos desconhecidos, ações
+condicionais/agendadas, verbos parciais e frases incompletas. `desliga` não é
+interpretado como `liga`; o espaço no prefixo e o alvo completo são exigidos.
+Sensores continuam sem capacidade de ligar/desligar.
+
+`respond_to_room_operator()` e `VoiceRouter` processam as novas formas pelo
+mesmo caminho S6, sem chamar o LLM. O orquestrador retorna `offline_preview`,
+`action_verified=False` e `physical_action_verified=False`; não há estado
+físico observado. As respostas dizem que o comando foi reconhecido/planejado
+e que nenhum comando físico foi enviado.
+
+As oito frases autorizáveis Samsung S4/S5.11 não foram ampliadas: o parser
+Samsung continua rejeitando `liga a TV Samsung`/`desliga a TV Samsung`, embora
+o parser da sala possa preparar seus planos offline. Não se criam tokens,
+clientes Home Assistant, permissões ou `OperatorTurn` a partir da voz.
+
+### Testes e verificações
+
+Baseline preservada: **714/714**. Resultado S7.1: **734/734**, com **20 novos
+testes** e seus subcasos. O runner bloqueia acesso real a hardware, rede,
+subprocessos e modelos, como na Sprint 7.
+
+Cobertura adicionada: ligar/desligar com/sem Jarvis; pontuação, caixa,
+acentos e espaços; grupos e aliases individuais cadastrados; distinção de
+ações; negação; múltiplas ações, condições e horários; alvos desconhecidos;
+frases incompletas; prefixos parciais e caracteres proibidos; capacidades de
+sensores; preservação do parser Samsung; respostas em preview; VoiceRouter
+sem LLM; sessão com transcrições simuladas válidas e inválidas, sem execução.
+
+Comandos executados e aprovados na raiz do repositório:
+
+```bash
+python3.11 projects/jarvis-room/scripts/run_offline_tests.py
+git diff --check
+.venv/bin/ruff check projects/jarvis-room/src/jarvis_room/room_intent.py \
+  projects/jarvis-room/tests/test_room_natural_variants.py
+```
+
+Esta correção não afirma nova execução remota do CI; a evidência remota da
+Sprint 7 original permanece registrada acima. Nenhum PR ou merge foi realizado.
+
+### Limitações e pendências
+
+As variantes são uma lista explícita, não compreensão irrestrita do português.
+Infinitivos como `ligar`, sinônimos não cadastrados e nomes fora dos aliases
+continuam bloqueados. Não há fuzzy matching nem correspondência parcial.
+Erros do STT em verbo, negação ou alvo podem resultar em bloqueio ou em outro
+plano reconhecido; esta mudança não avalia ou corrige acurácia acústica.
+
+Não foram chamados microfone, GPU, Ollama, Home Assistant ou dispositivos
+físicos na regressão. Não houve inferência real nem homologação acústica
+adicional. Avaliações de áudio, desempenho do modelo e melhorias CUDA/TTS
+continuam separadas, sob supervisão humana e sem ampliar controle físico.

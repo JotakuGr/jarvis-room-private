@@ -333,3 +333,24 @@ git diff --check
 [Instalação, diagnóstico e homologação](docs/integrations/voice-interaction.md),
 [ADR-0005](docs/adr/0005-local-voice-session.md) e
 [relatório Sprint 7](docs/reports/sprint-7-acceptance.md).
+
+### Sprint 7.1 — variantes naturais em português brasileiro
+
+O parser existente agora aceita explicitamente `liga`/`ligue` como `turn_on`
+e `desliga`/`desligue` como `turn_off`, mantendo vocativo opcional e a
+normalização existente. Assim, `Jarvis, liga os monitores` produz
+`group_control / turn_on / monitores`, em vez de `unsupported_command`.
+Os mesmos verbos funcionam com os grupos e aliases individuais cadastrados.
+
+Os alvos continuam exigindo correspondência completa. Negação, comandos
+compostos, alvos desconhecidos e frases incompletas permanecem bloqueados.
+Todos os comandos por voz continuam em **planejamento offline**, inclusive
+Samsung; suas autorizações de terminal não foram ampliadas.
+
+**734/734 testes offline aprovados: baseline 714 + 20 novos**, com Ruff e
+`git diff --check` aprovados. Nenhuma mudança em CUDA, modelo Whisper ou TTS,
+nenhum acionamento físico e nenhuma homologação acústica adicional nesta tarefa.
+O teste real de transcrição relatado pelo operador motivou a correção; não
+foi repetido durante a regressão automatizada.
+
+Detalhes e limitações no [relatório da Sprint 7, seção S7.1](docs/reports/sprint-7-acceptance.md).
