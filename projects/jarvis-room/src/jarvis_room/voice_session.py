@@ -21,7 +21,7 @@ from .voice_contract import (
     check_cancel,
     public_error,
 )
-from .voice_router import VoiceRouter
+from .voice_router import VoiceReply, VoiceRouter
 
 
 class VoiceSession:
@@ -40,6 +40,7 @@ class VoiceSession:
         output: Callable[[str], None] = print,
         on_state: Callable[[VoiceState], None] | None = None,
         on_metrics: Callable[[dict], None] | None = None,
+        on_reply: Callable[[str, VoiceReply], None] | None = None,
     ) -> None:
         self.microphone, self.transcriber, self.router = microphone, transcriber, router
         self.speaker, self.wake, self.config = speaker, wake, config
@@ -47,6 +48,7 @@ class VoiceSession:
         self.clock, self.wait = clock, wait if wait is not None else self.cancel.wait
         self.output, self.on_state = output, on_state
         self.on_metrics = on_metrics
+        self.on_reply = on_reply
         self.last_metrics: dict = {}
         self.state = VoiceState.IDLE
         self.closed = False
@@ -194,6 +196,8 @@ class VoiceSession:
                     break
                 self._state(VoiceState.RESPONDING)
                 self.output("J.A.R.V.I.S.: " + reply.text)
+                if self.on_reply is not None:
+                    self.on_reply(text, reply)
                 if self.speaker is not None:
                     stage = "tts"
                     stage_started = self.clock()

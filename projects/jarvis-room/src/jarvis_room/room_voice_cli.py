@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 from threading import Event
 from typing import Callable
 
@@ -27,7 +28,7 @@ from .voice_resident import ResidentTranscriber
 from .voice_router import VoiceRouter
 from .voice_session import VoiceSession
 from .voice_stt import COMPUTE_TYPES, STTSettings
-from .voice_tts import ResidentSpeaker
+from .voice_tts import ResidentSpeaker, tts_prerequisites
 
 
 def run_voice(
@@ -157,6 +158,17 @@ def parser() -> argparse.ArgumentParser:
     )
     result.add_argument("--llm-max-tokens", type=int, default=192)
     result.add_argument("--llm-context-tokens", type=int, default=4096)
+    result.add_argument(
+        "--presentation",
+        action="store_true",
+        help="Publicar observações no socket Unix privado da Sprint 9",
+    )
+    result.add_argument("--presentation-socket", type=Path)
+    result.add_argument(
+        "--share-conversation",
+        action="store_true",
+        help="Opt-in: compartilhar perguntas/respostas informativas com o dashboard",
+    )
     return result
 
 
@@ -201,6 +213,8 @@ def run_text_chat(
 def main() -> None:
     cli = parser()
     args = cli.parse_args()
+    if (args.presentation_socket or args.share_conversation) and not args.presentation:
+        cli.error("--presentation-socket e --share-conversation exigem --presentation.")
     runner = WorkerRunner()
     if args.stt_check and any(
         (args.diagnose, args.diagnose_stt, args.diagnose_ollama, args.diagnose_gpu)
@@ -369,9 +383,22 @@ def main() -> None:
         raise SystemExit(
             run_text_chat(VoiceRouter(chat), timeout=args.operation_seconds)
         )
+    publisher = None
+    if args.presentation:
+        from .presentation_ipc import PresentationPublisher, default_socket
+
+        publisher = PresentationPublisher(
+            args.presentation_socket or default_socket(),
+            share_conversation=args.share_conversation,
+            model=chat.model if chat is not None else None,
+        )
+        publisher.service("stt", "unknown", "Modelo ainda não carregado")
+        publisher.service("tts", "unavailable", "Reprodução ainda não validada")
     speaker = wake = None
     if args.tts_model_dir and args.tts_backend == "kokoro":
         try:
+            if not tts_prerequisites(args.tts_model_dir, args.voice)["ready"]:
+                raise VoiceError("tts_backend_unavailable")
             speaker = ResidentSpeaker(
                 runner,
                 args.tts_model_dir,
@@ -380,6 +407,7 @@ def main() -> None:
                 volume=args.volume,
                 device=args.output_device,
                 startup_seconds=args.startup_seconds,
+                on_playback=publisher.playback if publisher else None,
             )
         except (ValueError, VoiceError):
             print("J.A.R.V.I.S.: TTS local indisponível. Saída textual habilitada.")
@@ -403,6 +431,14 @@ def main() -> None:
 
     def state_changed(state: VoiceState) -> None:
         print(f"[{state.value}]", flush=True)
+        if publisher is not None:
+            publisher.state(state)
+
+    def metrics_changed(metrics):
+        if args.metrics:
+            print(json.dumps({"metrics": metrics}, ensure_ascii=False))
+        if publisher is not None:
+            publisher.metrics(metrics)
 
     session = VoiceSession(
         ProcessMicrophone(
@@ -417,13 +453,16 @@ def main() -> None:
         wake=wake,
         config=config,
         on_state=state_changed,
-        on_metrics=(
-            lambda metrics: print(json.dumps({"metrics": metrics}, ensure_ascii=False))
-        )
-        if args.metrics
+        on_metrics=metrics_changed,
+        on_reply=publisher.conversation
+        if publisher and args.share_conversation
         else None,
     )
-    raise SystemExit(run_voice(session, manual=wake is None))
+    try:
+        raise SystemExit(run_voice(session, manual=wake is None))
+    finally:
+        if publisher is not None:
+            publisher.close()
 
 
 if __name__ == "__main__":

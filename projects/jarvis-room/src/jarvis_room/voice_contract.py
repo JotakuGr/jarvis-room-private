@@ -64,6 +64,11 @@ PUBLIC_ERRORS = frozenset(
         "operation_timeout",
         "local_backend_unavailable",
         "playback_timeout",
+        "playback_failed",
+        "playback_backend_unavailable",
+        "playback_not_ready",
+        "playback_busy",
+        "playback_closed",
     }
 )
 

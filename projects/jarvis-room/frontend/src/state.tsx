@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { DemoSource, ReadOnlyEventSource } from './data/source';
+import { DemoSource } from './data/source';
+import { LiveSource } from './data/live';
 import type { PresentationSource } from './contracts';
 
 const Context = createContext<{ source: PresentationSource; mode: 'demo' | 'backend'; setMode: (mode: 'demo' | 'backend') => void } | null>(null);
 export function PresentationProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<'demo' | 'backend'>('demo');
-  const source = useMemo(() => mode === 'demo' ? new DemoSource() : new ReadOnlyEventSource(), [mode]);
+  const source = useMemo(() => mode === 'demo' ? new DemoSource() : new LiveSource(), [mode]);
   useEffect(() => { source.activate(); return () => source.dispose(); }, [source]);
   return <Context.Provider value={{ source, mode, setMode }}>{children}</Context.Provider>;
 }

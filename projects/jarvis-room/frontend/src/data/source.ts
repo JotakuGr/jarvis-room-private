@@ -5,11 +5,11 @@ const statuses: readonly DeviceStatus[] = ['planned', 'unknown', 'offline', 'con
 const serviceDefinitions = [
   ['voice', 'Sessão de voz', 'Sem sessão real de áudio'], ['ollama', 'Ollama', 'Disponibilidade não consultada'],
   ['llm', 'Modelo de linguagem', 'qwen3.5:4b · configuração Sprint 7'], ['stt', 'Faster-Whisper', 'Reconhecimento local · sem captura'],
-  ['tts', 'Síntese de voz', 'Integração visual com TTS pendente'], ['home_assistant', 'Home Assistant', 'Sem conexão no navegador'],
+  ['tts', 'Síntese de voz', 'Sem observação da reprodução'], ['home_assistant', 'Home Assistant', 'Sem conexão no navegador'],
 ] as const;
 function initial(mode: 'demo' | 'backend'): PresentationSnapshot {
   return Object.freeze({
-    mode, voiceState: 'IDLE', amplitude: amplitude(0), speakingDemo: false, updatedAt: null,
+    mode, sessionId: null, playback: 'unavailable', labObservation: null, conversation: null, voiceState: 'IDLE', amplitude: amplitude(0), speakingDemo: false, updatedAt: null,
     connection: { state: 'disconnected' as const, source: mode, receivedAt: null },
     devices: Object.fromEntries(devices.map(d => [d.id, { status: d.integration === 'planned' ? 'planned' : 'unknown', state: null, source: 'catalog', observedAt: null } satisfies DeviceObservation])),
     services: serviceDefinitions.map(([id, label, detail]) => ({ id, label, detail, status: 'unknown', source: 'catalog', observedAt: null } satisfies ServiceStatus)),
@@ -94,41 +94,55 @@ export function demoEnvelope(t: number): number {
   return Math.min(1, .12 + syllable * .65) * attack;
 }
 
-/** Future read-only seam. No URL or transport is assumed or opened here. */
+/** Validação e snapshots somente leitura; transporte separado em live.ts. */
 export class ReadOnlyEventSource implements PresentationSource {
   private snapshot = initial('backend'); private listeners = new Set<() => void>(); private sequence = -1; private disposed = false;
+  private sessionId: string | null = null; private retired = new Set<string>();
   activate() { this.disposed = false; }
+  invalidate(state: 'disconnected' | 'reconnecting' | 'connecting' = 'disconnected') {
+    this.sequence = -1; this.snapshot = Object.freeze({ ...initial('backend'), connection: { state, source: 'backend' as const, receivedAt: new Date().toISOString() } }); this.listeners.forEach(fn => fn());
+  }
+  silence() { if (this.snapshot.amplitude !== 0 || this.snapshot.playback === 'playing') { this.snapshot = Object.freeze({ ...this.snapshot, amplitude: amplitude(0), playback: 'unavailable' }); this.listeners.forEach(fn => fn()); } }
   getSnapshot = () => this.snapshot;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   receive(raw: unknown): boolean {
     if (this.disposed || !raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
     const data = raw as Record<string, unknown>;
-    if (Object.keys(data).sort().join(',') !== 'observedAt,payload,sequence,source,type,version' || data.version !== 1 || data.source !== 'backend'
-      || typeof data.sequence !== 'number' || !Number.isSafeInteger(data.sequence) || data.sequence <= this.sequence
+    const v2 = data.version === 2;
+    const newSession = v2 && data.sessionId !== this.sessionId;
+    if (Object.keys(data).sort().join(',') !== (v2 ? 'observedAt,payload,sequence,sessionId,source,type,version' : 'observedAt,payload,sequence,source,type,version') || ![1, 2].includes(data.version as number) || data.source !== 'backend'
+      || (v2 && (typeof data.sessionId !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(data.sessionId) || this.retired.has(data.sessionId)))
+      || typeof data.sequence !== 'number' || !Number.isSafeInteger(data.sequence) || data.sequence < 0 || (!newSession && data.sequence <= this.sequence)
       || typeof data.observedAt !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.test(data.observedAt) || !Number.isFinite(Date.parse(data.observedAt))
       || !data.payload || typeof data.payload !== 'object' || Array.isArray(data.payload)) return false;
     const p = data.payload as Record<string, unknown>; const keys = Object.keys(p).sort().join(',');
+    if (newSession && (data.type !== 'connection' || p.state !== 'connected')) return false;
     if (data.type !== 'connection' && this.snapshot.connection.state !== 'connected') return false;
     let patch: Partial<PresentationSnapshot>;
     if (data.type === 'voice_state' && keys === 'state' && isVoiceState(p.state)) patch = { voiceState: p.state };
-    else if (data.type === 'voice_amplitude' && keys === 'amplitude' && typeof p.amplitude === 'number' && Number.isFinite(p.amplitude) && p.amplitude >= 0 && p.amplitude <= 1) patch = { amplitude: amplitude(p.amplitude) };
+    else if (data.type === 'voice_amplitude' && keys === 'amplitude' && typeof p.amplitude === 'number' && Number.isFinite(p.amplitude) && p.amplitude >= 0 && p.amplitude <= 1) { if (v2 && p.amplitude > 0 && this.snapshot.playback !== 'playing') return false; patch = { amplitude: amplitude(p.amplitude) }; }
     else if (data.type === 'device_status' && keys === 'id,state,status' && typeof p.id === 'string' && deviceById.has(p.id)
       && statuses.includes(p.status as DeviceStatus) && ['on', 'off', 'unknown', 'unavailable', null].includes(p.state as string | null)) {
       // A presentation event cannot upgrade a planned integration to operational.
       if (deviceById.get(p.id)?.integration === 'planned' && (p.status !== 'planned' || p.state !== null)) return false;
       patch = { devices: { ...this.snapshot.devices, [p.id]: { status: p.status as DeviceStatus, state: p.state as DeviceObservation['state'], source: 'backend', observedAt: data.observedAt } } };
-    } else if (data.type === 'service_status' && keys === 'id,status' && statuses.includes(p.status as DeviceStatus) && this.snapshot.services.some(s => s.id === p.id)) {
-      patch = { services: this.snapshot.services.map(s => s.id === p.id ? { ...s, status: p.status as DeviceStatus, source: 'backend', observedAt: data.observedAt as string } : s) };
+    } else if (data.type === 'service_status' && keys === (v2 ? 'detail,id,status' : 'id,status') && (!v2 || (typeof p.detail === 'string' && p.detail.length > 0 && p.detail.length <= 128 && !/[\x00-\x1f\x7f]/.test(p.detail))) && statuses.includes(p.status as DeviceStatus) && this.snapshot.services.some(s => s.id === p.id)) {
+      patch = { services: this.snapshot.services.map(s => s.id === p.id ? { ...s, detail: v2 ? p.detail as string : s.detail, status: p.status as DeviceStatus, source: 'backend', observedAt: data.observedAt as string } : s) };
     } else if (data.type === 'connection' && keys === 'state' && ['disconnected', 'connecting', 'connected', 'reconnecting'].includes(p.state as string)) {
       patch = { connection: { state: p.state as PresentationSnapshot['connection']['state'], source: 'backend', receivedAt: new Date().toISOString() } };
-      if (p.state !== 'connected') patch = { ...patch, devices: initial('backend').devices, services: initial('backend').services, readings: [], voiceState: 'IDLE', amplitude: amplitude(0) };
-    } else if (data.type === 'sensor_reading' && keys === 'kind,sensorId,unit,value' && p.kind === 'presence'
+      if (p.state !== 'connected' || newSession) patch = { ...initial('backend'), ...patch, sessionId: v2 ? data.sessionId as string : null, devices: initial('backend').devices, services: initial('backend').services, readings: [], voiceState: 'IDLE', amplitude: amplitude(0) };
+    } else if (v2 && data.type === 'heartbeat' && keys === '') patch = {};
+    else if (v2 && data.type === 'playback_status' && keys === 'state' && ['idle', 'synthesizing', 'playing', 'unavailable', 'error'].includes(p.state as string)) patch = { playback: p.state as PresentationSnapshot['playback'], ...(p.state !== 'playing' ? { amplitude: amplitude(0) } : {}) };
+    else if (v2 && data.type === 'lab_observation' && keys === 'entityId,state,status' && p.entityId === 'input_boolean.jarvis_lab_light' && statuses.includes(p.status as DeviceStatus) && ['on', 'off', 'unknown', 'unavailable', null].includes(p.state as string | null) && (p.status === 'connected' || p.state === null || p.state === 'unavailable')) patch = { labObservation: { entityId: 'input_boolean.jarvis_lab_light', status: p.status as DeviceStatus, state: p.state as NonNullable<PresentationSnapshot['labObservation']>['state'], observedAt: data.observedAt } };
+    else if (v2 && data.type === 'conversation' && keys === 'answer,question' && typeof p.question === 'string' && p.question.length > 0 && p.question.length <= 256 && typeof p.answer === 'string' && p.answer.length > 0 && p.answer.length <= 700 && !/[\x00-\x1f\x7f]/.test(p.question + p.answer)) patch = { conversation: { question: p.question, answer: p.answer, observedAt: data.observedAt } };
+    else if (data.type === 'sensor_reading' && keys === 'kind,sensorId,unit,value' && p.kind === 'presence'
       && p.unit === null && typeof p.sensorId === 'string' && deviceById.get(p.sensorId)?.category === 'presence_sensor'
       && (p.value === null || typeof p.value === 'boolean')) {
       patch = { readings: [{ sensorId: p.sensorId, kind: 'presence', value: p.value, unit: null, source: 'backend', observedAt: data.observedAt }] };
     } else return false;
+    if (newSession) { if (this.sessionId) this.retired.add(this.sessionId); if (this.retired.size > 64) this.retired.delete(this.retired.values().next().value as string); this.sessionId = data.sessionId as string; }
     this.sequence = data.sequence;
-    this.snapshot = Object.freeze({ ...this.snapshot, ...patch, updatedAt: data.observedAt });
+    this.snapshot = Object.freeze({ ...this.snapshot, ...patch, sessionId: v2 ? data.sessionId as string : null, updatedAt: data.observedAt });
     this.listeners.forEach(fn => fn()); return true;
   }
   dispose() { this.disposed = true; this.listeners.clear(); }

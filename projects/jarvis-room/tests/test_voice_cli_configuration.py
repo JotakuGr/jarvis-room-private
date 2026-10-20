@@ -131,3 +131,41 @@ class VoiceCLIConfigurationTests(OfflineVoiceTest):
         with self.assertRaises(SystemExit) as result:
             room_voice_cli.main()
         self.assertEqual(result.exception.code, 2)
+
+    def test_conversation_sharing_requires_presentation_opt_in(self):
+        self.setup_cli(["--share-conversation"])
+        with self.assertRaises(SystemExit) as result:
+            room_voice_cli.main()
+        self.assertEqual(result.exception.code, 2)
+
+    def test_voice_cli_binds_presentation_callbacks_and_closes_publisher(self):
+        self.setup_cli(
+            [
+                "--stt-model-dir",
+                "/local/model",
+                "--presentation",
+                "--share-conversation",
+            ]
+        )
+        publisher = Mock()
+
+        def run(session, **kwargs):
+            session._state(room_voice_cli.VoiceState.LISTENING)
+            session.on_metrics({"stage": "stt_initialization"})
+            self.assertEqual(session.on_reply, publisher.conversation)
+            return 0
+
+        with (
+            patch.object(room_voice_cli, "ResidentTranscriber"),
+            patch(
+                "jarvis_room.presentation_ipc.PresentationPublisher",
+                return_value=publisher,
+            ),
+            patch.object(room_voice_cli, "run_voice", side_effect=run),
+            self.assertRaises(SystemExit) as result,
+        ):
+            room_voice_cli.main()
+        self.assertEqual(result.exception.code, 0)
+        publisher.state.assert_called_once_with(room_voice_cli.VoiceState.LISTENING)
+        publisher.metrics.assert_called_once()
+        publisher.close.assert_called_once()

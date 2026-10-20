@@ -328,10 +328,16 @@ def resident_main(kind: str, reader=None, writer=None) -> None:
                             from .voice_stt import SpeechEngine, STTSettings
 
                             engine = SpeechEngine(STTSettings(**request["options"]))
-                        else:
+                        elif kind == "tts":
                             from .voice_tts import KokoroEngine
 
                             engine = KokoroEngine(request["options"])
+                        elif kind == "playback":
+                            from .voice_playback import PlaybackEngine
+
+                            engine = PlaybackEngine(request["options"])
+                        else:
+                            raise VoiceError("ipc_operation_forbidden")
                         result = engine.health()
                     elif (
                         kind == "stt"
@@ -351,6 +357,21 @@ def resident_main(kind: str, reader=None, writer=None) -> None:
                         if set(request) != {"id", "op", "text"}:
                             raise VoiceError("ipc_invalid_message")
                         result = engine.synthesize(request["text"])
+                    elif (
+                        kind == "playback"
+                        and engine is not None
+                        and request.get("op") == "play"
+                    ):
+                        if set(request) != {"id", "op", "options"}:
+                            raise VoiceError("ipc_invalid_message")
+
+                        def progress(event):
+                            writer.write(
+                                encode_frame({"id": identifier, "event": event})
+                            )
+                            writer.flush()
+
+                        result = engine.play(request["options"], progress)
                     else:
                         raise VoiceError("ipc_operation_forbidden")
                 reply = {"id": identifier, "ok": True, "result": result}
@@ -368,9 +389,13 @@ def resident_main(kind: str, reader=None, writer=None) -> None:
 
 def main() -> None:
     arm_parent_death()
-    if sys.argv[1:] in (["--resident-stt"], ["--resident-tts"]):
+    if sys.argv[1:] in (
+        ["--resident-stt"],
+        ["--resident-tts"],
+        ["--resident-playback"],
+    ):
         try:
-            resident_main("stt" if sys.argv[1] == "--resident-stt" else "tts")
+            resident_main(sys.argv[1].removeprefix("--resident-"))
         except Exception:
             pass  # EOF fará o supervisor identificar falha de protocolo.
         return
