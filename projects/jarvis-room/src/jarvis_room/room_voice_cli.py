@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 from threading import Event
@@ -106,6 +107,12 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--diagnose", action="store_true", help="Só enumerar áudio/dependências"
     )
+    result.add_argument(
+        "--measure-input-levels",
+        action="store_true",
+        help="Opt-in: abrir microfone por até 10 s e mostrar só níveis RMS, sem STT",
+    )
+    result.add_argument("--level-seconds", type=float)
     result.add_argument(
         "--stt-model-dir",
         help="Diretório Faster-Whisper local, inclusive Large-v3 Turbo",
@@ -246,6 +253,55 @@ def main() -> None:
     if (args.presentation_socket or args.share_conversation) and not args.presentation:
         cli.error("--presentation-socket e --share-conversation exigem --presentation.")
     runner = WorkerRunner()
+    if args.level_seconds is not None and not args.measure_input_levels:
+        cli.error("--level-seconds exige --measure-input-levels.")
+    if args.measure_input_levels:
+        if any(
+            (
+                args.diagnose,
+                args.diagnose_stt,
+                args.diagnose_ollama,
+                args.diagnose_gpu,
+                args.stt_check,
+                args.continuous_experimental,
+                args.text_chat,
+                args.wake_model_dir,
+                args.presentation,
+                args.llm,
+            )
+        ):
+            cli.error(
+                "Execute --measure-input-levels separadamente da sessão e diagnósticos."
+            )
+        seconds = args.level_seconds if args.level_seconds is not None else 5.0
+        if not math.isfinite(seconds) or not 1 <= seconds <= 10:
+            cli.error("--level-seconds deve estar entre 1 e 10 segundos.")
+        if not 1 <= args.silence_threshold <= 32767:
+            cli.error("--silence-threshold deve estar entre 1 e 32767.")
+        try:
+            report = runner.run(
+                "input_levels",
+                {
+                    "device": args.input_device,
+                    "threshold": args.silence_threshold,
+                    "seconds": seconds,
+                },
+                timeout=seconds + 5,
+                cancel=Event(),
+                on_ready=lambda: print(
+                    f"Microfone aberto: medição RMS por até {seconds:g} s; "
+                    "sem transcrição ou armazenamento. Ctrl+C encerra.",
+                    file=sys.stderr,
+                    flush=True,
+                ),
+            )
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+        except (KeyboardInterrupt, VoiceCancelled):
+            raise SystemExit(130) from None
+        except (VoiceError, ValueError, OSError) as exc:
+            print(json.dumps({"error": public_error(exc, "input_levels_unavailable")}))
+            raise SystemExit(1) from None
+        return
     if args.stt_check and any(
         (args.diagnose, args.diagnose_stt, args.diagnose_ollama, args.diagnose_gpu)
     ):

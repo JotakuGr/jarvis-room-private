@@ -106,7 +106,7 @@ class PresentationHubTests(OfflineVoiceTest):
     def setUp(self):
         super().setUp()
         self.clock = Clock()
-        self.hub = EventHub(clock=self.clock)
+        self.hub = EventHub(clock=self.clock, now=lambda: "2026-10-21T21:00:00Z")
 
     def test_two_monitors_receive_same_session_and_increasing_sequences(self):
         first, second = self.hub.subscribe(), self.hub.subscribe()
@@ -323,7 +323,8 @@ class PresentationHealthTests(OfflineVoiceTest):
         hub, health = self.setup_health()
         health.poll()
         self.assertEqual(
-            hub.cache[("service_status", "llm")]["payload"]["detail"], "qwen3.5:4b"
+            hub.cache[("service_status", "llm")]["payload"]["detail"],
+            "qwen3.5:4b · instalado; sem resposta observada",
         )
         self.assertEqual(
             hub.cache[("service_status", "home_assistant")]["payload"]["status"],

@@ -1,7 +1,8 @@
-# Sprint 9 — voz real e apresentação local
+# Voz e apresentação local — Sprints 9, 9.1 e 9.2
 
 Integração da sessão S7 com as telas S8, sem controle físico por voz ou navegador.
-[Resultados e pendências](../reports/sprint-9-acceptance.md).
+[Registro original S9](../reports/sprint-9-acceptance.md).
+[Consolidação LIVE S9.2 e resultados](../reports/sprint-9-2-acceptance.md).
 [Contrato v2](presentation-events.md).
 [Operação atual S9.1: vocativo obrigatório e pm_alex](jarvis-wake-persona.md).
 [Controles supervisionados futuros](supervised-physical-automation.md).
@@ -64,9 +65,11 @@ Abra simultaneamente:
 - `http://127.0.0.1:5174/monitor/1`
 - `http://127.0.0.1:5174/monitor/2`
 
-Em cada janela, abra **Controles** (ou D) e selecione **LIVE · backend local
-somente leitura**. DEMO continua disponível e independente, sem áudio real.
-LIVE começa com dados desconhecidos e só mostra conexão após handshake válido.
+As duas rotas iniciam automaticamente em **LIVE**. Não é preciso trocar a
+fonte ou recarregar páginas para receber estados. Sem backend, exibem
+**Desconectado · reconectando**, sem fallback para simulação. DEMO exige
+seleção explícita em **Controles** (ou D), **Fonte de dados**, **DEMO**.
+LIVE começa desconhecido e só mostra conexão após handshake v2 válido.
 
 Terminal 3, **etapa humana supervisionada de voz**, da raiz do repositório:
 
@@ -87,6 +90,9 @@ modelo local adequado. Não há download nem mudança automática de precisão.
 A política de contexto/memória S7 permanece: quatro pares/1800 caracteres,
 prompt 3800, saída 192 tokens e contexto 4096 por padrão. Modelo instalado
 Qwen 3.5 4B; disponibilidade não certifica respostas nem coexistência na GPU.
+O inventário agora publica modelo instalado com uso não observado. Somente
+`router_complete` de resposta informativa confirma geração, antes do TTS;
+o polling do inventário não substitui essa evidência nem seu horário.
 
 ## Portas, origem e IPC
 
@@ -260,6 +266,7 @@ conectado registra a carga observada; não é inspeção contínua da GPU ociosa
 | Energia interrompida | Logs sanitizados da CLI, overflow/timeout, atraso SSE e relógios WSL/Windows |
 | Ollama indisponível | `--diagnose-ollama`; confirmar serviço e nome instalado, sem pull automático |
 | HA sem leitura | Opt-in, arquivo privado, auxiliar existente e autorização de homologação |
+| `microphone: capture_limit` | Houve energia interpretada como fala sem pausa suficiente antes do limite; medir entrada conforme abaixo |
 | HTTP 504 ao abrir a cena | Pré-bundle configurado dos imports 3D e cache específico do projeto; não apagar arquivos/modelos |
 
 Roteiro humano: diagnosticar; iniciar backend/frontend e selecionar LIVE;
@@ -267,6 +274,48 @@ testar voz sem TTS; comparar estados/cancelamento; habilitar Kokoro preparado;
 observar início/progresso/fim, silêncio, volume e falha de saída; medir atraso
 percebido em fones/alto-falantes, reverberação/eco e conversa de vários turnos;
 só depois realizar GET HA com autorização. Nenhum passo concede controle físico.
+
+### Captura descartada por falta de silêncio
+
+`capture_limit` não indica falha de CUDA. O capturador detectou pelo menos três
+quadros de energia acima do limiar (500 por padrão), mas não encontrou 1,2 s
+consecutivo abaixo dele antes de terminar a captura (15 s por padrão). Ruído,
+ganho alto, entrada errada ou fala longa podem causar isso. A frase cortada é
+descartada sem STT, LLM ou TTS; o modo contínuo para após a falha para evitar
+repetição ilimitada. Aumentar a duração não resolve ruído permanente.
+
+`--diagnose` continua sem abrir streams. A medição abaixo é **outro comando,
+opt-in com microfone**, limitado a 1–10 s (padrão 5), sem modelo, transcrição,
+publicação SSE ou arquivo de áudio. Usa worker CPU isolado, encerrável por Ctrl+C.
+Execute com a sessão de voz encerrada, da raiz do repositório. Primeiro permaneça
+em silêncio durante a medição:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli \
+  --measure-input-levels --level-seconds 5 --input-device 0
+```
+
+Depois repita e fale normalmente ao aparecer **Microfone aberto**:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli \
+  --measure-input-levels --level-seconds 5 --input-device 0
+```
+
+O índice 0 é o dispositivo `pulse` observado no Lief; confirme índices com
+`--diagnose` em outro ambiente. O resultado contém RMS mínimo/mediano/p95/máximo
+em unidades PCM16, fração de quadros acima do limiar e maior intervalo abaixo
+dele. Não são probabilidades de fala. `sampled_seconds` pode ser menor que o
+pedido devido ao tempo de abertura do stream. Nenhum quadro recebido gera
+`audio_no_frames`, e não um relatório falso de silêncio.
+
+Compare ambiente e fala antes de configurar `--silence-threshold` na sessão.
+O limiar deve separar ruído de fala audível; se os níveis se sobrepõem, revisar
+microfone/ganho/roteamento no Windows em vez de elevar o limiar às cegas. A
+medição não altera ganho, fonte, duração da sessão nem o limiar automaticamente.
+No WSLg, `RDPSource` é a entrada esperada; `RDPSink.monitor` captura a saída.
+O teste humano continua necessário e nenhuma medição deve ser chamada de
+detector acústico de Jarvis.
 
 ## Testes reproduzíveis
 
@@ -319,3 +368,163 @@ altera STT/CUDA, modelos, configuração de áudio ou serviços existentes.
 Referências: [SSE](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events),
 [RawOutputStream](https://python-sounddevice.readthedocs.io/en/latest/api/raw-streams.html) e
 [pré-bundle Vite](https://vite.dev/config/dep-optimization-options.html).
+
+
+## Consolidação LIVE — Sprint 9.2
+
+[Relatório de implementação e homologação pendente](../reports/sprint-9-2-acceptance.md).
+O transporte continua Python → Unix privado → SSE → proxy Vite → React.
+Nenhuma API, endpoint de comando ou WebSocket foi adicionado. Cada janela
+abre uma assinatura SSE; ambas recebem a mesma época/estado, sem duplicar IA.
+
+### O que cada monitor utiliza
+
+As duas janelas recebem o mesmo contrato v2; os campos visíveis são projeções
+somente leitura. Não há subscrição a credenciais/áudio nem consulta HA no React.
+
+| Evento | Monitor 1 | Monitor 2 |
+| --- | --- | --- |
+| `connection` | Badge LIVE conectado/desconectado | Estado do backend |
+| `heartbeat` | Validade da fonte e horário do último evento no tooltip | Validade e última atualização válida |
+| `voice_state` | Estado, tradução e cena S8 existente | Estado da sessão |
+| `playback_status` | Preparando voz / reprodução / saída inativa | Reprodução e falha explícitas |
+| `voice_amplitude` | Energia real para núcleo/anéis/brilho existentes | Amplitude e barras sem envelope simulado em LIVE |
+| `service_status` | Recebido, sem painel de serviços | Seis serviços e horário da última observação |
+| `device_status` | Recebido, sem promoção física | Inventário canônico; planejados permanecem planejados |
+| `lab_observation` | Recebido, sem painel de laboratório | Somente auxiliar virtual autorizado |
+| `conversation` | Não exibida | Oculta até opt-in CLI + checkbox; nova sessão/conexão desmarca exibição |
+
+`IDLE` significa espera da sessão; não comprova microfone desligado na escuta
+experimental S9.1. O serviço `voice` informa sessão/microfone com detalhe
+observado. Não existe telemetria individual do dispositivo de captura no v2:
+não inferir estado elétrico ou abertura contínua a partir de IDLE/connected.
+O painel explicita que os serviços mostram **última observação**, não garantia
+contínua de disponibilidade. Horários incluem dia/mês, evitando confundir uma
+observação anterior com uma atual. Não há nova medição de temperatura/presença.
+
+Ollama conectado significa inventário acessível. Modelo instalado é
+`service_status(llm, unknown)` com detalhe “instalado; sem resposta observada”.
+Uma resposta informativa efetivamente gerada publica `connected` e o nome
+selecionado + “resposta gerada nesta sessão”. O rótulo genérico **Observado**
+sozinho nunca prova inferência: versões S9 antigas também usavam connected
+para inventário. O detalhe/evidência emitido pelo backend diferencia as fases.
+Cumprimento fixo, identidade determinística e planos não confirmam uso da LLM.
+Falha de inventário remove a evidência atual, e nova conexão exige observação
+nova. O dashboard não declara um modelo carregado apenas por estar instalado.
+
+### Validade e retomada
+
+- Heartbeat continua 2 s; timeout 8 s e retry 1 s. Heartbeat/handshake antigo
+  ou mais de 8 s no futuro não renovam conexão. Playback/energia fora de 1,5 s
+  do relógio local são rejeitados; progresso expira após 500 ms no cliente.
+- Snapshot SSE confirma a conexão com timestamp atual, preservando timestamps
+  de observações. Antes de assinar, o hub verifica leases de produtor vencidos
+  e watchdog de áudio. Cada produtor reconectado cria época nova.
+- Reconexão Unix começa em IDLE, reprodução indisponível e energia zero,
+  sem reenviar conversa, estados ocupados ou saúde positiva histórica. Nova
+  inferência/captura/progresso restaura evidências, sem recarregar Whisper.
+- O publicador descarta progresso ocupado/áudio positivo enfileirado há mais
+  de 500 ms. Para retomar áudio em andamento exige amostra PCM recente; envia
+  playing antes da amplitude e somente restaura RESPONDING se esse estado
+  vier do cache da máquina real. Não inventa transição a partir de áudio.
+- Erro da sessão invalida energia no publicador, hub e React; erro/fim de TTS
+  mantém zero. Primeiro PCM ganha o prazo do watchdog contado do início da
+  reprodução, mesmo após longa espera. Relógio DAC/suavização S9 preservados.
+- Sem backend/heartbeat, a fonte continua LIVE, limpa observações/conversa/
+  energia e tenta reconectar. DEMO permanece isolado. Encerrar uma janela não
+  encerra a outra nem a CLI de voz. Cartões do inventário não assinam o fluxo
+  de amplitude individualmente; não houve alteração de geometria/assets.
+
+Depois de atualizar os arquivos Python, reinicie manualmente **seus** processos
+backend/CLI para carregar o código novo. Não mate processos de terceiros nem
+remova sockets em uso. Após reiniciar o backend, as páginas recuperam conexão
+sozinhas; a sessão de voz continua residente e reconecta o publicador.
+
+### Três terminais completos com pm_alex
+
+Da raiz `openjarvis`, em terminais independentes. Backend não inicia áudio:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.presentation_server
+```
+
+```bash
+cd projects/jarvis-room/frontend
+npm run dev
+```
+
+Sessão de voz para homologação supervisionada:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voice_cli \
+  --stt-model-dir "$HOME/.local/share/jarvis-room/models/whisper-large-v3-turbo" \
+  --stt-device cuda --stt-compute-type float16 \
+  --llm --llm-model qwen3.5:4b \
+  --tts-backend kokoro --tts-model-dir "$HOME/.local/share/jarvis-room/models/kokoro" \
+  --voice pm_alex --speed 0.92 --volume 0.5 \
+  --continuous-experimental --presentation --metrics
+```
+
+Abra `http://127.0.0.1:5174/monitor/1` e
+`http://127.0.0.1:5174/monitor/2`. Sem a opção contínua, Enter abre a captura
+manual. Em qualquer modo cada fala exige Jarvis inicial; Ctrl+C no terminal 3
+fecha captura e workers. O backend recebe apenas apresentação, sem execução.
+O [guia S9.1](jarvis-wake-persona.md) detalha CPU, dispositivos e comparação de
+vozes. Não houve download de pesos nem instalação TTS nesta implementação.
+
+### Aceitação supervisionada no Lief
+
+1. Inicie terminais 1 e 2 e abra as duas rotas: LIVE deve conectar sem seletor.
+   Sem CLI, voz/saída ficam não observadas/indisponíveis. Inventário permanece
+   declarativo. Confirme que nenhum modelo ou microfone foi iniciado pelas telas.
+2. Inicie uma única CLI no terminal 3. Diga `Jarvis` e confira cumprimento fixo,
+   RESPONDING, preparação com energia zero e playing/amplitude só durante áudio.
+   Se o STT transcrever `J.A.R.V.I.S.`, registre a rejeição conhecida; não afrouxe
+   filtro nem faça o frontend contornar a admissão.
+3. Diga `Jarvis, quem é você?`; confira os estados e a voz. Para comprovar
+   geração Ollama, use também `Jarvis, explique o projeto` (identidade/cumprimento
+   podem ser determinísticos). Confira instalado versus resposta gerada no painel.
+4. Verifique pulse/core/anéis durante PCM, zero ao final/erro/cancelamento e
+   IDLE após resposta. Respeite half-duplex; avalie WSLg/Windows, eco e jitter.
+   Esta etapa é auditiva/WebGL real, não é coberta por E2E sem GPU.
+5. Feche uma janela: a outra deve continuar atualizando. Reabra: LIVE e snapshot
+   atual. Pare **seu** backend pelo Ctrl+C, confirme desconexão/zero nas duas,
+   reinicie pelo mesmo comando e confira recuperação sem reload. Modelos não
+   devem reinicializar apenas pela reconexão da apresentação.
+6. Confirme conversa oculta. Só com `--share-conversation` habilitado na CLI e
+   checkbox marcado se mostra texto; desconexão/nova sessão ocultam novamente.
+   Falas sem vocativo e ambiente continuam descartadas antes de LLM/TTS.
+7. Encerre a CLI: IDLE/energia zero, serviços da sessão sem observação ativa.
+   HA continua desabilitado. Uma leitura real futura exige o opt-in e token
+   privado já documentados; só o helper virtual, sem ação física.
+
+Registre tempo/resultado observado de cada etapa e se houve hardware, versão,
+voz e modelo reais. Este roteiro foi preparado, **não executado com áudio/GPU/HA
+reais nesta sprint**. Não se declara nova homologação acústica ou visual real.
+
+### Regressão e portas exclusivas de teste
+
+```bash
+python3.11 projects/jarvis-room/scripts/run_offline_tests.py
+.venv/bin/ruff check projects/jarvis-room/src/jarvis_room/presentation_*.py \
+  projects/jarvis-room/src/jarvis_room/voice_*.py \
+  projects/jarvis-room/src/jarvis_room/room_voice_cli.py \
+  projects/jarvis-room/tests/test_presentation_*.py \
+  projects/jarvis-room/tests/test_voice_*.py \
+  projects/jarvis-room/frontend/tests/backend_fixture.py
+git diff --check
+cd projects/jarvis-room/frontend
+npm run typecheck
+npm test
+npm run build
+npm run test:e2e
+```
+
+Playwright agora reserva **15174** (Vite `--mode e2e`) e **18765** (backend falso)
+no loopback. O modo operacional permanece 5174/8765; não reutiliza servidores
+já ativos. O harness inicia/encerra apenas seus filhos. A fixture exige
+`JARVIS_PRESENTATION_E2E=1`, não consulta Ollama/HA, não carrega modelos e usa
+produtor falso por Unix privado; seu controle é stdin, nunca endpoint HTTP.
+Não use esse modo de teste para apresentar dados como telemetria real da sala.
+Python 3.11 deve estar no PATH; CI prepara essa versão. Não há dependência de
+runtime nova. Pacotes/browsers de teste são separados de modelos de IA.

@@ -5,7 +5,7 @@ import type { PresentationSource } from './contracts';
 
 const Context = createContext<{ source: PresentationSource; mode: 'demo' | 'backend'; setMode: (mode: 'demo' | 'backend') => void } | null>(null);
 export function PresentationProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<'demo' | 'backend'>('demo');
+  const [mode, setMode] = useState<'demo' | 'backend'>('backend');
   const source = useMemo(() => mode === 'demo' ? new DemoSource() : new LiveSource(), [mode]);
   useEffect(() => { source.activate(); return () => source.dispose(); }, [source]);
   return <Context.Provider value={{ source, mode, setMode }}>{children}</Context.Provider>;

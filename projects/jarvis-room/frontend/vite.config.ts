@@ -12,7 +12,7 @@ const headers = {
   'X-Content-Type-Options': 'nosniff',
 };
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   cacheDir: 'node_modules/.vite-jarvis-room',
   optimizeDeps: {
@@ -23,11 +23,11 @@ export default defineConfig({
       'three/examples/jsm/postprocessing/OutputPass.js'],
   },
   server: {
-    host: '127.0.0.1', port: 5174, strictPort: true, cors: false, headers,
+    host: '127.0.0.1', port: mode === 'e2e' ? 15174 : 5174, strictPort: true, cors: false, headers,
     fs: { strict: true, allow: [root, ...canonical], deny: ['.env', '.env.*', '**/.git/**', '**/secrets/**', '**/*.{pem,key}'] },
     proxy: {
       '^/api/presentation/events$': {
-        target: 'http://127.0.0.1:8765', changeOrigin: true,
+        target: mode === 'e2e' ? 'http://127.0.0.1:18765' : 'http://127.0.0.1:8765', changeOrigin: true,
         rewrite: () => '/events',
       },
     },
@@ -36,4 +36,4 @@ export default defineConfig({
   build: { outDir: 'dist', emptyOutDir: true, sourcemap: false,
   },
   test: { environment: 'node', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'], maxWorkers: 1 },
-});
+}));

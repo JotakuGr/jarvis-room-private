@@ -60,6 +60,7 @@ PUBLIC_ERRORS = frozenset(
         "wake_activation_rate_limit",
         "wake_license_unavailable",
         "audio_overflow",
+        "audio_no_frames",
         "capture_limit",
         "operation_timeout",
         "local_backend_unavailable",

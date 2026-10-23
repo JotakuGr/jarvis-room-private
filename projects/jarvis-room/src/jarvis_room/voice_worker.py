@@ -218,7 +218,7 @@ def execute(operation: str, options: dict):
             "model_loaded": False,
             "inference_performed": False,
         }
-    if operation == "capture":
+    if operation in {"capture", "input_levels"}:
         from .voice_audio import SoundDeviceMicrophone
 
         mic = SoundDeviceMicrophone(
@@ -227,6 +227,8 @@ def execute(operation: str, options: dict):
             on_ready=notify_audio_ready,
         )
         try:
+            if operation == "input_levels":
+                return mic.measure_levels(timeout=options["seconds"], cancel=Event())
             return base64.b64encode(
                 mic.capture(timeout=options["seconds"], cancel=Event())
             ).decode()

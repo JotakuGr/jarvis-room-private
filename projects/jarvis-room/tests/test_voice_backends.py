@@ -147,6 +147,20 @@ class VoiceBackendTests(OfflineVoiceTest):
         )
         self.assertEqual(runner.run.call_args.kwargs["timeout"], 7)
 
+    def test_input_levels_worker_reuses_isolated_microphone_and_always_closes(self):
+        mic = Mock()
+        mic.measure_levels.return_value = {"rms_p95": 600}
+        options = {"device": 0, "threshold": 900, "seconds": 3}
+        with patch("jarvis_room.voice_audio.SoundDeviceMicrophone", return_value=mic):
+            self.assertEqual(execute("input_levels", options), {"rms_p95": 600})
+            mic.capture.assert_not_called()
+            mic.close.assert_called_once()
+            mic.reset_mock()
+            mic.measure_levels.side_effect = VoiceError("audio_overflow")
+            with self.assertRaisesRegex(VoiceError, "audio_overflow"):
+                execute("input_levels", options)
+            mic.close.assert_called_once()
+
     def test_tts_has_explicit_brazilian_voice(self):
         runner = self.runner(None)
         speaker = LocalSpeaker(

@@ -2,6 +2,7 @@ import { lazy, Suspense, useState, type CSSProperties } from 'react';
 import { usePresentation, useReducedMotion, useVisibility } from '../state';
 import { DemoPanel } from '../components/DemoPanel';
 import { Icon } from '../components/Icon';
+import { connectionLabel } from '../data/labels';
 import type { Quality } from '../scene/motion';
 const Scene = lazy(() => import('../scene/Scene').then(module => ({ default: module.SceneSurface })));
 const stateLabels = { IDLE: 'Em espera', LISTENING: 'Ouvindo', TRANSCRIBING: 'Transcrevendo', THINKING: 'Pensando', RESPONDING: 'Respondendo', ERROR: 'Atenção necessária' };
@@ -13,7 +14,7 @@ export function MonitorOne() {
   return <main className={`monitor-one voice-${snapshot.voiceState.toLowerCase()}`} style={{ '--voice-energy': reduced ? 0 : snapshot.amplitude } as CSSProperties}>
     <div className="lab-backdrop" aria-hidden="true" /><div className="lab-vignette" aria-hidden="true" />
     <div className="environment-wash" aria-hidden="true" /><div className="floor-reflection" aria-hidden="true" />
-    <div className="monitor-one-meta"><span className="small-logo">J<span> / </span>ROOM</span><span className="subtle-divider" /><span className="demo-badge">{snapshot.mode === 'demo' ? 'DEMO' : 'LIVE · ' + snapshot.connection.state}</span></div>
+    <div className="monitor-one-meta"><span className="small-logo">J<span> / </span>ROOM</span><span className="subtle-divider" /><span className="demo-badge" title={snapshot.updatedAt ? `Último evento válido: ${new Date(snapshot.updatedAt).toLocaleTimeString('pt-BR')}` : 'Sem evento válido'}>{snapshot.mode === 'demo' ? 'DEMO' : 'LIVE · ' + connectionLabel[snapshot.connection.state]}</span></div>
     <div className="monitor-one-actions"><DemoPanel quality={quality} setQuality={setQuality} /><button className="icon-button" aria-label="Alternar tela cheia" onClick={fullscreen}><Icon name="expand" /></button><a className="icon-button" href="/monitor/2" target="_blank" rel="noopener noreferrer" aria-label="Abrir dashboard em outra janela"><Icon name="monitor" /></a></div>
     <Suspense fallback={<div className="scene-loading" role="status">Preparando ambiente visual…</div>}><Scene state={snapshot.voiceState} amplitude={reduced ? 0 : snapshot.amplitude} quality={quality} reduced={reduced} visible={visible} /></Suspense>
     <div className="hologram-identity"><h1>J.A.R.V.I.S.</h1><div className="status-rail"><span /><i /><span /></div><p data-testid="voice-state" aria-live="polite">{snapshot.voiceState}</p><span className="state-translation">{stateLabels[snapshot.voiceState]}</span></div>

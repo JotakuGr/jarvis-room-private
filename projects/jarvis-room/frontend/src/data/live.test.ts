@@ -15,6 +15,13 @@ describe('v2 presentation contract', () => {
     expect(source.receive(event(1, 'voice_state', { state: 'LISTENING' }))).toBe(false);
     expect(source.receive(event(1, 'connection', { state: 'connected' }, 'invalid'))).toBe(false);
   });
+  it('rejects invalid calendar timestamps rather than accepting Date.parse normalization', () => {
+    const source = connected();
+    for (const observedAt of ['2026-02-30T12:00:00Z', '2026-04-31T12:00:00Z', '2026-01-01T24:00:00Z', '0000-01-01T12:00:00Z']) {
+      expect(source.receive({ ...event(2, 'heartbeat', {}), observedAt })).toBe(false);
+    }
+    expect(source.receive({ ...event(2, 'heartbeat', {}), observedAt: '2024-02-29T12:00:00.123456+03:00' })).toBe(true);
+  });
   it('discards stale sequence values within a session', () => {
     const source = connected();
     expect(source.receive(event(10, 'voice_state', { state: 'THINKING' }))).toBe(true);
@@ -170,5 +177,72 @@ describe('LIVE SSE lifecycle with fake transport', () => {
     expect(source.getSnapshot().amplitude).toBe(0);
     expect(source.getSnapshot().voiceState).toBe('IDLE');
     expect(source.getSnapshot().connection.state).toBe('reconnecting'); source.dispose();
+  });
+  it('rejects a stale or future heartbeat instead of extending the lease', () => {
+    const { source, send } = live();
+    send(event(1, 'connection', { state: 'connected' }));
+    vi.advanceTimersByTime(7000);
+    send({ ...event(2, 'heartbeat', {}), observedAt: '2026-10-19T12:00:00Z' });
+    send({ ...event(3, 'heartbeat', {}), observedAt: '2026-10-22T12:00:00Z' });
+    vi.advanceTimersByTime(1250);
+    expect(source.getSnapshot().connection.state).toBe('reconnecting'); source.dispose();
+  });
+  it('rejects an old playing status and a stale connection handshake', () => {
+    const { source, send } = live();
+    send({ ...event(1, 'connection', { state: 'connected' }), observedAt: '2026-10-19T12:00:00Z' });
+    expect(source.getSnapshot().connection.state).toBe('connecting');
+    send(event(1, 'connection', { state: 'connected' }));
+    send({ ...event(2, 'playback_status', { state: 'playing' }), observedAt: '2026-10-19T12:00:00Z' });
+    send(event(3, 'voice_amplitude', { amplitude: .8 }));
+    expect(source.getSnapshot().amplitude).toBe(0); source.dispose();
+  });
+  it('recovers on a new backend epoch without reloading or retaining old data', () => {
+    const { source, streams, send } = live();
+    send(event(1, 'connection', { state: 'connected' }));
+    send(event(2, 'conversation', { question: 'Como?', answer: 'Anterior.' }));
+    send(event(3, 'voice_state', { state: 'THINKING' }));
+    streams[0].onerror?.(new Event('error')); vi.advanceTimersByTime(1000);
+    send(event(1, 'connection', { state: 'connected' }, other));
+    send(event(2, 'voice_state', { state: 'LISTENING' }, other));
+    send(event(9, 'voice_state', { state: 'ERROR' }, sid));
+    expect(source.getSnapshot().sessionId).toBe(other);
+    expect(source.getSnapshot().voiceState).toBe('LISTENING');
+    expect(source.getSnapshot().conversation).toBeNull(); source.dispose();
+  });
+  it('keeps reconnecting visible while a replacement stream waits for handshake', () => {
+    const { source, streams } = live();
+    streams[0].onerror?.(new Event('error')); vi.advanceTimersByTime(1000);
+    expect(source.getSnapshot().connection.state).toBe('reconnecting'); source.dispose();
+  });
+  it('zeroes playback immediately on ERROR and rejects energy until recovery', () => {
+    const { source, send } = live();
+    send(event(1, 'connection', { state: 'connected' }));
+    send(event(2, 'playback_status', { state: 'playing' }));
+    send(event(3, 'voice_amplitude', { amplitude: .8 }));
+    send(event(4, 'voice_state', { state: 'ERROR' }));
+    expect(source.getSnapshot().amplitude).toBe(0);
+    expect(source.getSnapshot().playback).toBe('error');
+    send(event(5, 'playback_status', { state: 'playing' }));
+    send(event(6, 'voice_amplitude', { amplitude: .7 }));
+    expect(source.getSnapshot().amplitude).toBe(0); source.dispose();
+  });
+  it('does not change LIVE data when an explicit DEMO source broadcasts', () => {
+    const { source, send } = live(); const demo = new DemoSource();
+    send(event(1, 'connection', { state: 'connected' }));
+    send(event(2, 'voice_state', { state: 'LISTENING' }));
+    demo.setDeviceStatus('samsung_lab_tv', 'connected'); demo.demonstrateSpeech();
+    vi.advanceTimersByTime(100);
+    expect(source.getSnapshot().voiceState).toBe('LISTENING');
+    expect(source.getSnapshot().devices.samsung_lab_tv.status).toBe('unknown');
+    expect(source.getSnapshot().amplitude).toBe(0); demo.dispose(); source.dispose();
+  });
+  it('does not claim a model is loaded before observing backend metadata', () => {
+    const { source, send } = live();
+    expect(source.getSnapshot().services.find(s => s.id === 'llm')?.detail).not.toContain('qwen');
+    send(event(1, 'connection', { state: 'connected' }));
+    send(event(2, 'service_status', { id: 'llm', status: 'unknown', detail: 'qwen3.5:4b · instalado; sem resposta observada' }));
+    expect(source.getSnapshot().services.find(s => s.id === 'llm')?.status).toBe('unknown');
+    send(event(3, 'service_status', { id: 'llm', status: 'connected', detail: 'qwen3.5:4b · resposta gerada nesta sessão' }));
+    expect(source.getSnapshot().services.find(s => s.id === 'llm')?.status).toBe('connected'); source.dispose();
   });
 });

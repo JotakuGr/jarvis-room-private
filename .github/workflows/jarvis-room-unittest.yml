@@ -2,7 +2,7 @@ name: JARVIS Room offline unittest
 
 on:
   push:
-    branches: [main, feature/sprint3-ha-laboratorio-readonly, feature/sprint4-samsung-ha-control, feature/sprint5-samsung-natural-commands, feature/sprint6-room-orchestration, feature/sprint7-voice-interaction, feature/sprint9-voice-frontend-integration, feature/sprint9-1-jarvis-wake-persona]
+    branches: [main, feature/sprint3-ha-laboratorio-readonly, feature/sprint4-samsung-ha-control, feature/sprint5-samsung-natural-commands, feature/sprint6-room-orchestration, feature/sprint7-voice-interaction, feature/sprint9-voice-frontend-integration, feature/sprint9-1-jarvis-wake-persona, feature/sprint9-2-live-frontend-backend]
     paths:
       - 'projects/jarvis-room/**'
       - '.github/workflows/jarvis-room-unittest.yml'
@@ -54,6 +54,7 @@ jobs:
           projects/jarvis-room/src/jarvis_room/provider_chat_adapter.py
           projects/jarvis-room/tests/test_voice_*.py
           projects/jarvis-room/tests/test_presentation_*.py
+          projects/jarvis-room/frontend/tests/backend_fixture.py
           projects/jarvis-room/tests/test_room_natural_variants.py
           src/openjarvis/_audio_pcm.py
           src/openjarvis/speech/faster_whisper.py

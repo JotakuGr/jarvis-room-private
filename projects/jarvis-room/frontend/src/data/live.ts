@@ -30,7 +30,7 @@ export class LiveSource implements PresentationSource {
   }
   private connect() {
     if (!this.active) return;
-    this.receiver.invalidate('connecting'); this.heartbeat = this.clock();
+    this.receiver.invalidate(this.generation === 0 ? 'connecting' : 'reconnecting'); this.heartbeat = this.clock();
     const generation = ++this.generation;
     try {
       const stream = this.factory('/api/presentation/events'); this.stream = stream;
@@ -39,7 +39,8 @@ export class LiveSource implements PresentationSource {
         try {
           const event = JSON.parse(message.data);
           if (event?.version !== 2) return;
-          if (event.type === 'voice_amplitude' && Math.abs(Date.now() - Date.parse(event.observedAt)) > 1500) return;
+          if (Math.abs(this.clock() - Date.parse(event.observedAt)) > (event.type === 'voice_amplitude' || event.type === 'playback_status' ? 1500 : 8000)
+            && ['connection', 'heartbeat', 'playback_status', 'voice_amplitude'].includes(event.type)) return;
           if (!this.receiver.receive(event)) return;
           if (event.type === 'heartbeat' || event.type === 'connection') this.heartbeat = this.clock();
           if (event.type === 'voice_amplitude' || event.type === 'playback_status') this.energy = this.clock();

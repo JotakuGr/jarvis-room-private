@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import math
 import queue
+import statistics
 import time
 import wave
 from contextlib import contextmanager
@@ -162,6 +163,49 @@ class SoundDeviceMicrophone:
     def close(self) -> None:
         if self._stream is not None:
             self._stream.abort()
+
+    def measure_levels(self, *, timeout: float, cancel: Event) -> dict:
+        """Opt-in limitado: retorna estatísticas RMS, nunca áudio ou transcrição."""
+        from openjarvis._audio_pcm import _rms
+
+        if (
+            isinstance(timeout, bool)
+            or not math.isfinite(timeout)
+            or not 1 <= timeout <= 10
+        ):
+            raise ValueError("invalid_level_timeout")
+        levels: list[float] = []
+        quiet = longest_quiet = 0
+        with self.frames(timeout=timeout, cancel=cancel) as source:
+            for data in source:
+                check_cancel(cancel)
+                level = _rms(data)
+                levels.append(level)
+                quiet = quiet + 1 if level <= self.threshold else 0
+                longest_quiet = max(longest_quiet, quiet)
+                if len(levels) >= int(timeout * RATE / CHUNK):
+                    break
+        check_cancel(cancel)
+        if not levels:
+            raise VoiceError("audio_no_frames")
+        ordered = sorted(levels)
+        return {
+            "capture_performed": True,
+            "audio_retained": False,
+            "inference_performed": False,
+            "frames": len(levels),
+            "sampled_seconds": round(len(levels) * CHUNK / RATE, 3),
+            "threshold": self.threshold,
+            "rms_min": round(ordered[0], 1),
+            "rms_median": round(statistics.median(levels), 1),
+            "rms_p95": round(ordered[math.ceil(len(levels) * 0.95) - 1], 1),
+            "rms_max": round(ordered[-1], 1),
+            "above_threshold_fraction": round(
+                sum(level > self.threshold for level in levels) / len(levels), 3
+            ),
+            "longest_below_threshold_seconds": round(longest_quiet * CHUNK / RATE, 3),
+            "silence_seconds_required": self.silence_seconds,
+        }
 
 
 def play_audio(

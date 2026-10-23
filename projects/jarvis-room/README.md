@@ -483,3 +483,25 @@ na regressão: **920 Python**, **52 frontend**, **6 E2E** aprovados.
 [Comandos completos no Lief, comparação de vozes e testes de falsos positivos](docs/integrations/jarvis-wake-persona.md).
 [Relatório da Sprint 9.1](docs/reports/sprint-9-1-acceptance.md).
 Controle físico continua em planejamento offline. Sem push, merge ou PR automático.
+
+
+### Sprint 9.2 — LIVE como fonte inicial e transporte consolidado
+
+Os dois monitores iniciam em **LIVE**. SSE v2, heartbeat e reconexão atualizam
+as páginas sem reload; ausência do backend fica **Desconectado · reconectando**,
+sem fallback para DEMO. Simulação é uma escolha explícita e isolada.
+
+Snapshot/reconexão descartam fala/energia antigas; o holograma aprovado recebe
+somente PCM real durante reprodução, sem nova cena/asset ou amplitude sintética
+em LIVE. Dashboard distingue inventário Ollama, modelo instalado e geração
+observada, com horários e aviso de que IDLE não confirma microfone desligado.
+Conversa continua opt-in e volta a ficar oculta ao trocar sessão/conexão.
+Nenhuma autorização física foi acrescentada; catálogo e cenas são os existentes.
+
+Regressão S9.2: **940 Python**, **61 Vitest**, **8 Playwright**, TypeScript,
+build, Ruff e whitespace aprovados. E2E inclui transporte real loopback com
+produtor falso, em portas isoladas 15174/18765. Portas normais 5174/8765 intactas.
+Homologação acústica/WebGL/HA real permanece uma etapa supervisionada separada.
+
+[Comandos completos dos três terminais e roteiro no Lief](docs/integrations/voice-frontend-integration.md).
+[Relatório S9.2](docs/reports/sprint-9-2-acceptance.md).

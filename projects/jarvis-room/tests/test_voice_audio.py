@@ -246,3 +246,49 @@ class VoiceAudioTests(OfflineVoiceTest):
         ):
             with self.subTest(options=options), self.assertRaises(ValueError):
                 SoundDeviceMicrophone(**options)
+
+    def test_input_levels_report_only_aggregates_of_synthetic_pcm(self):
+        mic = self.fake_capture([SILENCE] * 3 + [SPEECH] * 3)
+        report = mic.measure_levels(timeout=1, cancel=Event())
+        self.assertEqual(report["frames"], 6)
+        self.assertEqual(report["rms_min"], 0)
+        self.assertEqual(report["rms_median"], 1000)
+        self.assertEqual(report["rms_p95"], 2000)
+        self.assertEqual(report["above_threshold_fraction"], 0.5)
+        self.assertEqual(report["longest_below_threshold_seconds"], 0.24)
+        self.assertFalse(report["audio_retained"])
+        self.assertFalse(report["inference_performed"])
+        self.assertFalse(any(isinstance(value, bytes) for value in report.values()))
+
+    def test_input_levels_enforces_frame_limit_even_if_source_does_not_stop(self):
+        mic = self.fake_capture([SPEECH] * 1000)
+        report = mic.measure_levels(timeout=1, cancel=Event())
+        self.assertEqual(report["frames"], 12)
+        self.assertLessEqual(report["sampled_seconds"], 1)
+        self.assertEqual(report["above_threshold_fraction"], 1)
+
+    def test_input_levels_has_no_data_error_instead_of_claiming_silence(self):
+        with self.assertRaisesRegex(VoiceError, "audio_no_frames"):
+            self.fake_capture([]).measure_levels(timeout=1, cancel=Event())
+
+    def test_input_levels_cancel_closes_stream(self):
+        self.install_stream([SPEECH])
+        cancel = Event()
+        mic = SoundDeviceMicrophone(on_ready=cancel.set)
+        with self.assertRaises(VoiceCancelled):
+            mic.measure_levels(timeout=1, cancel=cancel)
+        self.stream.__exit__.assert_called_once()
+        self.assertIsNone(mic._stream)
+
+    def test_input_levels_overflow_closes_stream_without_report(self):
+        self.install_stream([SPEECH] * 9)
+        mic = SoundDeviceMicrophone()
+        with self.assertRaisesRegex(VoiceError, "audio_overflow"):
+            mic.measure_levels(timeout=1, cancel=Event())
+        self.stream.__exit__.assert_called_once()
+
+    def test_input_levels_rejects_unbounded_duration_before_opening_stream(self):
+        mic = self.fake_capture([])
+        for duration in (0, 11, True, float("nan"), float("inf")):
+            with self.subTest(duration=duration), self.assertRaises(ValueError):
+                mic.measure_levels(timeout=duration, cancel=Event())

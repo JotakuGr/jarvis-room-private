@@ -1,11 +1,11 @@
-import { amplitude, isVoiceState, type DeviceStatus, type DeviceObservation, type PresentationSnapshot, type PresentationSource, type ServiceStatus, type VoiceState } from '../contracts';
+import { amplitude, isVoiceState, isTimestamp, type DeviceStatus, type DeviceObservation, type PresentationSnapshot, type PresentationSource, type ServiceStatus, type VoiceState } from '../contracts';
 import { devices, deviceById } from './catalog';
 
 const statuses: readonly DeviceStatus[] = ['planned', 'unknown', 'offline', 'connected', 'unavailable'];
 const serviceDefinitions = [
-  ['voice', 'Sessão de voz', 'Sem sessão real de áudio'], ['ollama', 'Ollama', 'Disponibilidade não consultada'],
-  ['llm', 'Modelo de linguagem', 'qwen3.5:4b · configuração Sprint 7'], ['stt', 'Faster-Whisper', 'Reconhecimento local · sem captura'],
-  ['tts', 'Síntese de voz', 'Sem observação da reprodução'], ['home_assistant', 'Home Assistant', 'Sem conexão no navegador'],
+  ['voice', 'Sessão de voz / microfone', 'Captura ainda não observada'], ['ollama', 'Ollama', 'Disponibilidade não consultada'],
+  ['llm', 'Modelo de linguagem', 'Modelo selecionado ainda não observado'], ['stt', 'Faster-Whisper', 'Reconhecimento ainda não observado'],
+  ['tts', 'Kokoro TTS', 'Sem observação da reprodução'], ['home_assistant', 'Home Assistant', 'Sem conexão no navegador'],
 ] as const;
 function initial(mode: 'demo' | 'backend'): PresentationSnapshot {
   return Object.freeze({
@@ -113,14 +113,14 @@ export class ReadOnlyEventSource implements PresentationSource {
     if (Object.keys(data).sort().join(',') !== (v2 ? 'observedAt,payload,sequence,sessionId,source,type,version' : 'observedAt,payload,sequence,source,type,version') || ![1, 2].includes(data.version as number) || data.source !== 'backend'
       || (v2 && (typeof data.sessionId !== 'string' || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(data.sessionId) || this.retired.has(data.sessionId)))
       || typeof data.sequence !== 'number' || !Number.isSafeInteger(data.sequence) || data.sequence < 0 || (!newSession && data.sequence <= this.sequence)
-      || typeof data.observedAt !== 'string' || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,6})?(?:Z|[+-]\d\d:\d\d)$/.test(data.observedAt) || !Number.isFinite(Date.parse(data.observedAt))
+      || !isTimestamp(data.observedAt)
       || !data.payload || typeof data.payload !== 'object' || Array.isArray(data.payload)) return false;
     const p = data.payload as Record<string, unknown>; const keys = Object.keys(p).sort().join(',');
     if (newSession && (data.type !== 'connection' || p.state !== 'connected')) return false;
     if (data.type !== 'connection' && this.snapshot.connection.state !== 'connected') return false;
     let patch: Partial<PresentationSnapshot>;
-    if (data.type === 'voice_state' && keys === 'state' && isVoiceState(p.state)) patch = { voiceState: p.state };
-    else if (data.type === 'voice_amplitude' && keys === 'amplitude' && typeof p.amplitude === 'number' && Number.isFinite(p.amplitude) && p.amplitude >= 0 && p.amplitude <= 1) { if (v2 && p.amplitude > 0 && this.snapshot.playback !== 'playing') return false; patch = { amplitude: amplitude(p.amplitude) }; }
+    if (data.type === 'voice_state' && keys === 'state' && isVoiceState(p.state)) patch = { voiceState: p.state, ...(p.state === 'ERROR' ? { amplitude: amplitude(0), playback: 'error' } : {}) };
+    else if (data.type === 'voice_amplitude' && keys === 'amplitude' && typeof p.amplitude === 'number' && Number.isFinite(p.amplitude) && p.amplitude >= 0 && p.amplitude <= 1) { if (v2 && p.amplitude > 0 && (this.snapshot.playback !== 'playing' || this.snapshot.voiceState === 'ERROR')) return false; patch = { amplitude: amplitude(p.amplitude) }; }
     else if (data.type === 'device_status' && keys === 'id,state,status' && typeof p.id === 'string' && deviceById.has(p.id)
       && statuses.includes(p.status as DeviceStatus) && ['on', 'off', 'unknown', 'unavailable', null].includes(p.state as string | null)) {
       // A presentation event cannot upgrade a planned integration to operational.
@@ -132,7 +132,7 @@ export class ReadOnlyEventSource implements PresentationSource {
       patch = { connection: { state: p.state as PresentationSnapshot['connection']['state'], source: 'backend', receivedAt: new Date().toISOString() } };
       if (p.state !== 'connected' || newSession) patch = { ...initial('backend'), ...patch, sessionId: v2 ? data.sessionId as string : null, devices: initial('backend').devices, services: initial('backend').services, readings: [], voiceState: 'IDLE', amplitude: amplitude(0) };
     } else if (v2 && data.type === 'heartbeat' && keys === '') patch = {};
-    else if (v2 && data.type === 'playback_status' && keys === 'state' && ['idle', 'synthesizing', 'playing', 'unavailable', 'error'].includes(p.state as string)) patch = { playback: p.state as PresentationSnapshot['playback'], ...(p.state !== 'playing' ? { amplitude: amplitude(0) } : {}) };
+    else if (v2 && data.type === 'playback_status' && keys === 'state' && ['idle', 'synthesizing', 'playing', 'unavailable', 'error'].includes(p.state as string)) { if (p.state === 'playing' && this.snapshot.voiceState === 'ERROR') return false; patch = { playback: p.state as PresentationSnapshot['playback'], ...(p.state !== 'playing' ? { amplitude: amplitude(0) } : {}) }; }
     else if (v2 && data.type === 'lab_observation' && keys === 'entityId,state,status' && p.entityId === 'input_boolean.jarvis_lab_light' && statuses.includes(p.status as DeviceStatus) && ['on', 'off', 'unknown', 'unavailable', null].includes(p.state as string | null) && (p.status === 'connected' || p.state === null || p.state === 'unavailable')) patch = { labObservation: { entityId: 'input_boolean.jarvis_lab_light', status: p.status as DeviceStatus, state: p.state as NonNullable<PresentationSnapshot['labObservation']>['state'], observedAt: data.observedAt } };
     else if (v2 && data.type === 'conversation' && keys === 'answer,question' && typeof p.question === 'string' && p.question.length > 0 && p.question.length <= 256 && typeof p.answer === 'string' && p.answer.length > 0 && p.answer.length <= 700 && !/[\x00-\x1f\x7f]/.test(p.question + p.answer)) patch = { conversation: { question: p.question, answer: p.answer, observedAt: data.observedAt } };
     else if (!v2 && data.type === 'sensor_reading' && keys === 'kind,sensorId,unit,value' && p.kind === 'presence'

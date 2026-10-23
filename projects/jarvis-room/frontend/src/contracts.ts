@@ -52,3 +52,13 @@ export function amplitude(value: number): VoiceAmplitude {
   return (Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0) as VoiceAmplitude;
 }
 export function isVoiceState(value: unknown): value is VoiceState { return typeof value === 'string' && (VOICE_STATES as readonly string[]).includes(value); }
+export function isTimestamp(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.\d{1,6})?(?:Z|([+-])(\d\d):(\d\d))$/.exec(value);
+  if (!match || !Number.isFinite(Date.parse(value))) return false;
+  const [, year, month, day, hour, minute, second, , offsetHour, offsetMinute] = match;
+  return +year >= 1 && +month >= 1 && +month <= 12 && +day >= 1
+    && +day <= new Date(Date.UTC(+year, +month, 0)).getUTCDate()
+    && +hour <= 23 && +minute <= 59 && +second <= 59
+    && (offsetHour === undefined || (+offsetHour <= 23 && +offsetMinute <= 59));
+}

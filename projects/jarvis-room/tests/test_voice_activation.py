@@ -271,6 +271,16 @@ class ContinuousVocativeTests(OfflineVoiceTest):
         self.assertEqual(self.speaker.texts, [])
         self.assertTrue(session.closed)
 
+    def test_capture_limit_discards_audio_stops_and_explains_level_measurement(self):
+        chat = Mock()
+        session = self.session(captures=[VoiceError("capture_limit")], chat=chat)
+        self.assertEqual(run_voice(session, continuous=True, output=lambda _: None), 1)
+        self.assertEqual(self.stt.calls, [])
+        self.assertEqual(self.speaker.texts, [])
+        chat.answer.assert_not_called()
+        self.assertTrue(session.closed and self.mic.closed)
+        self.assertTrue(any("--measure-input-levels" in line for line in self.output))
+
     def test_continuous_stt_timeout_closes_all_resources(self):
         session = self.session(texts=[VoiceError("ipc_timeout")])
         self.assertEqual(run_voice(session, continuous=True, output=lambda _: None), 1)

@@ -19,6 +19,102 @@ class VoiceCLIConfigurationTests(OfflineVoiceTest):
         self.enterContext(patch.object(sys.stdout, "isatty", return_value=True))
         return output
 
+    def test_input_levels_opt_in_never_constructs_ai_or_session(self):
+        output = self.setup_cli(
+            [
+                "--measure-input-levels",
+                "--level-seconds",
+                "3",
+                "--input-device",
+                "0",
+                "--silence-threshold",
+                "900",
+            ]
+        )
+        runner = self.runner({"rms_p95": 700, "audio_retained": False})
+        with (
+            patch.object(room_voice_cli, "WorkerRunner", return_value=runner),
+            patch.object(room_voice_cli, "ResidentTranscriber") as stt,
+            patch.object(room_voice_cli, "ResidentSpeaker") as tts,
+            patch.object(room_voice_cli, "LocalChat") as chat,
+            patch.object(room_voice_cli, "run_voice") as session,
+        ):
+            room_voice_cli.main()
+        self.assertEqual(json.loads(output.getvalue())["rms_p95"], 700)
+        self.assertEqual(
+            runner.run.call_args.args,
+            (
+                "input_levels",
+                {"device": 0, "threshold": 900, "seconds": 3.0},
+            ),
+        )
+        self.assertEqual(runner.run.call_args.kwargs["timeout"], 8)
+        for component in (stt, tts, chat, session):
+            component.assert_not_called()
+
+    def test_input_levels_invalid_limits_never_launch_worker(self):
+        for extra in (
+            ["--level-seconds", "nan"],
+            ["--level-seconds", "11"],
+            ["--silence-threshold", "0"],
+            ["--level-seconds", "0"],
+        ):
+            with self.subTest(extra=extra):
+                self.setup_cli(["--measure-input-levels", *extra])
+                with (
+                    patch.object(room_voice_cli, "WorkerRunner") as runner,
+                    self.assertRaises(SystemExit) as result,
+                ):
+                    room_voice_cli.main()
+                self.assertEqual(result.exception.code, 2)
+                runner.return_value.run.assert_not_called()
+
+    def test_input_levels_cannot_be_disguised_as_passive_diagnostic(self):
+        for extra in (
+            "--diagnose",
+            "--stt-check",
+            "--continuous-experimental",
+            "--presentation",
+            "--llm",
+            "--text-chat",
+        ):
+            with self.subTest(extra=extra):
+                self.setup_cli(["--measure-input-levels", extra])
+                with self.assertRaises(SystemExit) as result:
+                    room_voice_cli.main()
+                self.assertEqual(result.exception.code, 2)
+
+    def test_input_levels_failure_is_sanitized(self):
+        output = self.setup_cli(["--measure-input-levels"])
+        runner = self.runner(None)
+        runner.run.side_effect = OSError("private internal hardware details")
+        with (
+            patch.object(room_voice_cli, "WorkerRunner", return_value=runner),
+            self.assertRaises(SystemExit) as result,
+        ):
+            room_voice_cli.main()
+        self.assertEqual(result.exception.code, 1)
+        self.assertEqual(
+            json.loads(output.getvalue()), {"error": "input_levels_unavailable"}
+        )
+
+    def test_input_levels_ctrl_c_stops_without_starting_session(self):
+        self.setup_cli(["--measure-input-levels"])
+        runner = self.runner(None)
+        runner.run.side_effect = KeyboardInterrupt()
+        with (
+            patch.object(room_voice_cli, "WorkerRunner", return_value=runner),
+            self.assertRaises(SystemExit) as result,
+        ):
+            room_voice_cli.main()
+        self.assertEqual(result.exception.code, 130)
+
+    def test_level_duration_requires_explicit_microphone_opt_in(self):
+        self.setup_cli(["--level-seconds", "5"])
+        with self.assertRaises(SystemExit) as result:
+            room_voice_cli.main()
+        self.assertEqual(result.exception.code, 2)
+
     def test_text_chat_selects_installed_model_without_constructing_audio(self):
         self.setup_cli(["--text-chat", "--llm", "--llm-model", "qwen3.5:0.8b"])
         runner = self.runner({"models": [{"name": "qwen3.5:0.8b", "size_bytes": 1}]})

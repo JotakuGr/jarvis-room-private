@@ -18,21 +18,40 @@ class HealthObserver:
         )
 
     def poll(self):
+        with self.hub.lock:
+            lease = self.hub.lease
+            model = self.hub.model if self.hub.producer else self.model
+
+        def model_status(status, detail, *, unavailable=False):
+            with self.hub.lock:
+                if self.hub.lease != lease:
+                    return  # não aplicar inventário da sessão anterior
+                if unavailable:
+                    self.hub.llm_observed = False
+                elif self.hub.llm_observed:
+                    return  # inventário não sobrescreve resultado real de inferência
+                self.service("llm", status, detail)
+
         try:
             models = local_models()
             self.service("ollama", "connected", "Inventário local acessível")
             try:
-                model = self.hub.model if self.hub.producer else self.model
                 if model is None:
-                    self.service("llm", "unknown", "Conversa desabilitada na sessão")
+                    model_status("unknown", "Conversa desabilitada na sessão")
                 else:
                     require_model(LLMSettings(model), models)
-                    self.service("llm", "connected", model)
+                    model_status(
+                        "unknown", model[:80] + " · instalado; sem resposta observada"
+                    )
             except (ValueError, RuntimeError):
-                self.service("llm", "unavailable", "Modelo selecionado não disponível")
+                model_status(
+                    "unavailable", "Modelo selecionado não disponível", unavailable=True
+                )
         except Exception:
             self.service("ollama", "unavailable", "Serviço local indisponível")
-            self.service("llm", "unavailable", "Sem observação local do modelo")
+            model_status(
+                "unavailable", "Sem observação local do modelo", unavailable=True
+            )
         if self.ha_client is None:
             self.service(
                 "home_assistant", "unknown", "Leitura do laboratório desabilitada"

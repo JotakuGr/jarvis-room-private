@@ -1,4 +1,4 @@
-# Contrato de apresentação — v2 / Sprint 9
+# Contrato de apresentação — v2 / Sprints 9 e 9.2
 
 Backend implementado em `jarvis_room.presentation_server`, SSE somente leitura
 no loopback. Publicação exclusiva por socket Unix privado do mesmo UID.
@@ -67,6 +67,31 @@ comandos, autorização ou confirmação física.
   sem armazenamento persistente, HTML executável ou reinterpretação como comando.
 - Status de serviço conserva horário da observação; pacote/modelo instalado não
   comprova inferência, naturalidade, dispositivo disponível ou execução física.
+
+## Semântica consolidada S9.2
+
+Não foram acrescentados tipos, campos ou IDs ao envelope v2. As duas rotas
+iniciam LIVE; DEMO precisa ser selecionado. Calendário ISO inválido é rejeitado
+por Python e React, além de limites de números/versão/campos.
+
+`connected` em serviço indica uma **observação**, cujo detalhe e horário são
+obrigatórios; não significa operação física ou disponibilidade contínua.
+Ollama inventário acessível é diferente de modelo instalado (`llm=unknown`,
+sem resposta observada) e de geração informativa concluída (`llm=connected`,
+detalhe com modelo e resposta gerada). Inventário não redata uma geração real.
+`voice` representa sessão/microfone observado; IDLE não comprova stream fechado.
+Não existe sensor novo ou canal de controle de equipamentos.
+
+Snapshot confirma handshake com timestamp atual; mantém horários dos dados.
+Reconexão de produtor não reapresenta áudio/conversa/saúde positiva antigos.
+Só amostra recente do PCM restaura playing/energia; RESPONDING não gera energia.
+ERROR zera reprodução/energia, e desconexão remove os dados do snapshot. Opt-in
+de exibição da conversa é limpo ao trocar sessão/fonte ou desconectar.
+
+Heartbeat/handshake precisam estar dentro de 8 s do relógio local; eventos de
+reprodução/energia dentro de 1,5 s. O relógio WSL/navegador deve ser coerente.
+Detalhes e limiares completos no [guia de integração](voice-frontend-integration.md).
+As duas janelas recebem os nove tipos v2; cada monitor exibe apenas sua projeção.
 
 ## Histórico — contrato da Sprint 8 (v1)
 

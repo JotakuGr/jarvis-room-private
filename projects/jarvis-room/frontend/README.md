@@ -28,7 +28,8 @@ Não há alteração no frontend original em `/frontend`.
 
 ## Usar a demonstração
 
-O botão **Controles**, ou a tecla **D**, abre o painel recolhível. Selecione um dos
+LIVE é o padrão nas duas rotas. O botão **Controles**, ou a tecla **D**, abre o
+painel recolhível; selecione primeiro **DEMO** em **Fonte de dados**, então um dos
 seis estados de voz, ajuste amplitude entre 0 e 1 ou use **Demonstrar resposta**.
 A demonstração dura oito segundos e retorna a IDLE. Não produz som nem usa TTS.
 Há seletores de qualidade, status demonstrativo da Samsung e conexão simulada.
@@ -39,22 +40,24 @@ BroadcastChannel em memória. Não há persistência, microfone, inferência ou 
 O Monitor 1 possui botão de tela cheia e atalho para abrir o dashboard.
 No Monitor 2, as cenas abrem uma prévia ordenada de seis equipamentos, sem ação.
 
-## Fonte LIVE — Sprint 9
+## Fonte LIVE — Sprint 9.2
 
-No seletor, **LIVE · backend local somente leitura** abre SSE de mesma origem.
+**LIVE · backend local somente leitura** inicia automaticamente com SSE de mesma
+origem. Sem backend, aparece Desconectado/reconectando; não muda para DEMO.
 Inicie `jarvis_room.presentation_server` e uma única CLI de voz S7 com
 `--presentation`; as duas telas compartilham os eventos, sem duplicar modelos.
 Backend ausente/perda de heartbeat limpa estado, energia e observações antigas.
 DEMO permanece separado e não publica estados falsos na fonte LIVE.
 
 O holograma existente recebe energia calculada do PCM durante a reprodução
-efetiva do TTS, não durante síntese. Dependências/assets Kokoro estão ausentes
-na inspeção atual; o modo textual mostra indisponibilidade de áudio e energia zero.
+efetiva do TTS, não durante síntese. Kokoro/pm_alex são preparados na CLI, nunca pelo navegador; o modo textual
+ou falha de TTS mostra indisponibilidade de áudio e energia zero.
 Sem `--share-conversation` não é enviado conteúdo de conversa ao dashboard.
 Home Assistant é lido somente pelo backend com opt-in e token privado, nunca pelo
 navegador; o auxiliar virtual não comprova estado de iluminação física.
 
 [Inicialização, diagnóstico e homologação completos](../docs/integrations/voice-frontend-integration.md).
+[Relatório S9.2](../docs/reports/sprint-9-2-acceptance.md).
 [Contrato de eventos](../docs/integrations/presentation-events.md).
 
 ## Verificar
@@ -65,11 +68,12 @@ npm test
 npm run build
 ```
 
-Os testes Vitest não abrem rede nem inicializam WebGL. São **50 testes** de
+Os testes Vitest não abrem rede nem inicializam WebGL. São **61 testes** de
 contratos, catálogo, cenas, fontes DEMO/LIVE, reconexão/heartbeat, animação e recursos.
 
-**Seis cenários Playwright aprovados** na Sprint 9, com Chromium/bibliotecas
-temporários em `/tmp`, serviços falsos e GPU desativada. Para preparar um ambiente
+**Oito cenários Playwright aprovados** na S9.2, incluindo dois com transporte
+Python Unix → SSE → Vite real local e produtor falso. Serviços falsos e GPU
+desativada; sem microfone, inferência ou HA reais. Para preparar um ambiente
 de teste explicitamente (não necessário à execução normal da UI):
 
 ```bash
@@ -79,7 +83,8 @@ npm run test:e2e
 ```
 
 Esses cenários usam fallback sem GPU, movimento reduzido e bloqueiam requisições fora
-de `127.0.0.1:5174`. Não certificam a renderização WebGL nem fidelidade visual.
+de `127.0.0.1:15174` nos E2E. O harness usa portas exclusivas 15174/18765,
+Python 3.11 e processos próprios. As portas operacionais continuam 5174/8765. Não certificam a renderização WebGL nem fidelidade visual.
 O guia completo registra a opção sem instalação de pacotes no sistema usada nesta
 entrega. Os imports 3D têm pré-bundle explícito e cache próprio para evitar HTTP 504
 durante o carregamento tardio da cena.

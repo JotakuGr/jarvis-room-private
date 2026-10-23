@@ -29,6 +29,7 @@ class EventHub:
         self.last_producer = self.last_amplitude = self.clock()
         self.last_heartbeat = self.clock()
         self.playing = False
+        self.llm_observed = False
         self.publish("connection", {"state": "connected"})
 
     def publish(self, kind: str, payload: dict):
@@ -41,6 +42,8 @@ class EventHub:
                     raise ValueError("amplitude_without_playback")
                 self.last_amplitude = self.clock()
             if kind == "playback_status":
+                if not self.playing and payload["state"] == "playing":
+                    self.last_amplitude = self.clock()
                 self.playing = payload["state"] == "playing"
             self.sequence += 1
             event = validate_event(
@@ -70,9 +73,14 @@ class EventHub:
         with self.lock:
             if self.closed or len(self.clients) >= 6:
                 raise ValueError("presentation_client_limit")
+            self.tick()  # snapshot nunca ressuscita um lease ou áudio vencido
             client = queue.Queue(maxsize=128)
             for event in sorted(self.cache.values(), key=lambda e: e["sequence"]):
-                client.put_nowait(copy.deepcopy(event))
+                current = copy.deepcopy(event)
+                if event["type"] in {"connection", "playback_status"}:
+                    # Conexão atual; reprodução confirmada pelo watchdog acima.
+                    current["observedAt"] = self.now()
+                client.put_nowait(current)
             self.clients.add(client)
             return client
 
@@ -86,6 +94,7 @@ class EventHub:
             self.sequence = 0
             self.cache.clear()
             self.playing = False
+            self.llm_observed = False
             self.publish("connection", {"state": "connected"})
             self.publish("voice_state", {"state": "IDLE"})
             self.publish("playback_status", {"state": "unavailable"})
@@ -143,7 +152,12 @@ class EventHub:
                 raise ValueError("voice_producer_missing")
             self.last_producer = self.clock()
             if kind != "heartbeat":
+                if kind == "service_status" and payload["id"] == "llm":
+                    self.llm_observed = True
                 self.publish(kind, payload)
+                if kind == "voice_state" and payload["state"] == "ERROR":
+                    self.publish("playback_status", {"state": "error"})
+                    self.publish("voice_amplitude", {"amplitude": 0})
                 if kind == "playback_status" and payload["state"] != "playing":
                     self.publish("voice_amplitude", {"amplitude": 0})
 
@@ -155,7 +169,8 @@ class EventHub:
                 self.producer = False
                 self.lease = None
                 self.reset()
-            for identifier in ("voice", "stt", "tts"):
+            self.model = None
+            for identifier in ("voice", "stt", "tts", "llm"):
                 self.publish(
                     "service_status",
                     {

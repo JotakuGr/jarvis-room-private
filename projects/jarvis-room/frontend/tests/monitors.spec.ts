@@ -12,7 +12,7 @@ test.beforeEach(async ({ context }) => {
   context.on('response', async response => { if (response.status() >= 400) console.error('Frontend HTTP error:', response.status(), response.url(), (await response.text()).slice(0, 400)); });
   // UI checks deliberately avoid GPU animation, audio and external traffic.
   await context.addInitScript(() => {
-    window.__sse = []; window.__sseFail = true;
+    window.__sse = []; window.__sseFail = new URLSearchParams(location.search).has('sse-fail');
     class FakeEventSource {
       onmessage: ((event: MessageEvent) => void) | null = null;
       onerror: ((event: Event) => void) | null = null;
@@ -33,7 +33,7 @@ test.beforeEach(async ({ context }) => {
   });
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
-    if (url.origin !== 'http://127.0.0.1:5174' || route.request().method() !== 'GET') return route.abort();
+    if (url.origin !== 'http://127.0.0.1:15174' || route.request().method() !== 'GET') return route.abort();
     return route.continue();
   });
 });
@@ -43,7 +43,7 @@ test('Monitor 1 has the approved room backplate and visible compatibility mode',
   await expect(page.getByRole('heading', { name: 'J.A.R.V.I.S.' })).toBeVisible();
   await expect(page.locator('[data-renderer="fallback"]')).toBeVisible();
   await expect(page.getByTestId('voice-state')).toHaveText('IDLE');
-  await expect(page.locator('.demo-badge').first()).toHaveText('DEMO');
+  await expect(page.locator('.demo-badge').first()).toContainText('LIVE');
   await expect(page.locator('.lab-backdrop')).toHaveCSS('background-image', /lab-environment.png/);
 });
 
@@ -63,6 +63,9 @@ test('two independent windows share only simulated voice presentation', async ({
   const one = await context.newPage(); const two = await context.newPage();
   await one.goto('/monitor/1'); await two.goto('/monitor/2');
   await one.getByRole('button', { name: 'Abrir controles de demonstração' }).click();
+  await one.getByLabel('Fonte de dados').selectOption('demo');
+  await two.getByRole('button', { name: 'Abrir controles de demonstração' }).click();
+  await two.getByLabel('Fonte de dados').selectOption('demo');
   await one.getByRole('button', { name: 'RESPONDING', exact: true }).click();
   await expect(two.locator('.voice-session>strong')).toHaveText('RESPONDING');
   await one.getByRole('button', { name: 'Retornar a IDLE' }).click();
@@ -71,13 +74,12 @@ test('two independent windows share only simulated voice presentation', async ({
 
 test('LIVE transport failure is visible without fabricated telemetry', async ({ page }) => {
   const forbidden: string[] = [];
-  page.on('request', request => { if (new URL(request.url()).origin !== 'http://127.0.0.1:5174') forbidden.push(request.url()); });
-  await page.goto('/monitor/2');
+  page.on('request', request => { if (new URL(request.url()).origin !== 'http://127.0.0.1:15174') forbidden.push(request.url()); });
+  await page.goto('/monitor/2?sse-fail');
   await page.getByRole('button', { name: 'Abrir controles de demonstração' }).click();
-  await page.getByLabel('Fonte de dados').selectOption('backend');
-  await expect(page.locator('.connection-label')).toHaveText('Reconectando');
+  await expect(page.locator('.connection-label')).toHaveText('Desconectado · reconectando');
   await expect(page.locator('.voice-session>strong')).toHaveText('IDLE');
-  await expect(page.getByText('LIVE · reconnecting.', { exact: false })).toBeVisible();
+  await expect(page.getByText('LIVE · Desconectado · reconectando.', { exact: false })).toBeVisible();
   expect(forbidden).toEqual([]);
 });
 
@@ -102,8 +104,8 @@ test('both LIVE monitors consume the same typed voice events, without device con
   }
   await expect(one.getByTestId('voice-state')).toHaveText('RESPONDING');
   await expect(two.locator('.voice-session>strong')).toHaveText('RESPONDING');
-  await expect(two.locator('.connection-label')).toHaveText('Fonte conectada');
-  await expect(two.locator('.voice-session small')).toContainText('reprodução real do TTS');
+  await expect(two.locator('.connection-label')).toHaveText('Conectado');
+  await expect(two.locator('.voice-session small')).toContainText('Reprodução real do TTS');
   await expect(two.locator('[data-device-id="room_main_lights"] .status-label')).toHaveText('Planejado');
   await two.evaluate(() => window.__sse.at(-1)?.onerror?.(new Event('error')));
   await expect(two.locator('.voice-session>strong')).toHaveText('IDLE');

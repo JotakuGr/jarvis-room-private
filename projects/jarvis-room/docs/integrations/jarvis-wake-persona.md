@@ -136,7 +136,8 @@ npm run dev
 ```
 
 Abra `http://127.0.0.1:5174/monitor/1` e
-`http://127.0.0.1:5174/monitor/2`; selecione LIVE em ambas as janelas.
+`http://127.0.0.1:5174/monitor/2`; desde S9.2, ambas iniciam LIVE automaticamente.
+DEMO só é utilizado quando selecionado explicitamente nos controles.
 Terminal 3, escuta contínua experimental na RTX 4070, Qwen e pm_alex:
 
 ```bash

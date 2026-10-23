@@ -229,6 +229,8 @@ class VoiceSession:
                 check_cancel(self.cancel)
                 if self.clock() >= deadline:
                     break
+                if self.on_metrics is not None:
+                    self.on_metrics({"stage": "router_complete", **self.last_metrics})
                 self._state(VoiceState.RESPONDING)
                 self.output("J.A.R.V.I.S.: " + reply.text)
                 if self.on_reply is not None:
@@ -293,6 +295,12 @@ class VoiceSession:
                 "Janela fechada; "
                 "verifique o diagnóstico antes de ativar novamente."
             )
+            if stage == "microphone" and code == "capture_limit":
+                self.output(
+                    "Captura descartada: faltou silêncio antes do limite. "
+                    "Verifique ruído, ganho e fonte de entrada. Meça os níveis com "
+                    "--measure-input-levels antes de ajustar --silence-threshold."
+                )
             if self.on_metrics is not None:
                 self.on_metrics(
                     {
