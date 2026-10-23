@@ -323,7 +323,8 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
 ```
 
 Pressione Enter e aguarde `Microfone pronto. Pode falar.`. Fale o pedido,
-faça uma pausa e continue sem repetir o vocativo dentro da janela ativa.
+faça uma pausa e comece cada novo pedido com Jarvis, inclusive na janela ativa
+(regra atual S9.1).
 `sair`, EOF ou Ctrl+C encerram. `--wake-model-dir` habilita o detector
 experimental; `--llm` habilita somente perguntas informativas pelo Ollama local.
 
@@ -392,7 +393,7 @@ PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.room_voi
 
 Pressione Enter e aguarde a abertura efetiva do microfone. A janela permite
 vários turnos (até 300 s, 30 s de inatividade e 20 tentativas de captura),
-reutilizando STT entre ativações. `limpar contexto` descarta a conversa;
+reutilizando STT entre ativações. `Jarvis, limpar contexto` descarta a conversa por voz;
 Ctrl+C encerra. Controle físico permanece desabilitado.
 
 [Diagnósticos, instalação e comandos atuais](docs/integrations/voice-gpu-ollama.md),
@@ -421,3 +422,86 @@ npm run dev
 Abra `http://127.0.0.1:5174/monitor/1` e `http://127.0.0.1:5174/monitor/2` em janelas
 separadas. Sem acesso ao Home Assistant, microfone, TTS real ou controle físico.
 Build, testes e pendências estão no [relatório da Sprint 8](docs/reports/sprint-8-acceptance.md).
+
+### Sprint 9 — sessão de voz conectada às telas
+
+- Estados reais S7 publicados por socket Unix privado e distribuídos por SSE
+  em loopback. DEMO e LIVE separados, heartbeat, reconexão e limpeza de dados.
+- Cena e fundo S8 preservados. Energia do holograma vem do PCM na reprodução
+  real do TTS, com suavização, relógio DAC e retorno a zero em falha/cancelamento.
+- Ollama/Qwen 3.5 4B reutilizados, sem ferramentas físicas. Conversa no Monitor 2
+  somente com opt-in da CLI e opção de exibição; sem entrada de comandos no navegador.
+- GET HA opcional e restrito ao auxiliar virtual; tokens apenas no backend,
+  sem presumir entidades Samsung antigas. Catálogo/cenas canônicos preservados.
+- Kokoro/Torch e assets brasileiros ausentes no ambiente auditado: infraestrutura
+  pronta e testada com fakes, síntese/audição reais ainda pendentes.
+- **885 testes Python**, **50 TypeScript** e **6 E2E** aprovados; build, Ruff e
+  whitespace aprovados. Não há homologação real de voz/GPU/HA nesta entrega.
+
+Backend, da raiz do repositório:
+
+```bash
+PYTHONPATH=projects/jarvis-room/src:src .venv/bin/python -m jarvis_room.presentation_server
+```
+
+Frontend: `cd projects/jarvis-room/frontend` e `npm run dev`. Abra as duas rotas
+5174 acima e selecione LIVE em cada janela. Em outro terminal, na homologação
+autorizada, execute a sessão S7 com `--presentation`; um único processo de voz
+alimenta os dois monitores. Sem sessão, os serviços de voz ficam indisponíveis.
+
+[Comandos completos e diagnóstico](docs/integrations/voice-frontend-integration.md),
+[contrato v2](docs/integrations/presentation-events.md),
+[controles futuros supervisionados](docs/integrations/supervised-physical-automation.md) e
+[relatório da Sprint 9](docs/reports/sprint-9-acceptance.md).
+Sem comandos de push, PR ou merge pelo agente. O relatório distingue a revisão
+publicada externamente dos complementos locais. Controle físico por voz/UI permanece bloqueado.
+
+
+### Sprint 9.1 — vocativo obrigatório, persona e pm_alex
+
+Cada solicitação de voz exige **Jarvis no início**. Fala sem o nome ou com o
+nome no meio é descartada antes do roteador, LLM, TTS e publicação da conversa.
+`Jarvis` isolado responde **“Sim, senhor. Em que posso ajudá-lo?”**, sem Ollama,
+e volta à espera. Não há dispensa de vocativo nos turnos seguintes.
+
+Padrão da aplicação: **pm_alex**, velocidade **0,92**, volume **0,5**, Kokoro
+CPU brasileiro. O texto escrito continua J.A.R.V.I.S.; só a preparação da
+fala transforma o nome em Jarvis. pm_santa continua selecionável. Persona
+original calma, técnica e educada; sem imitação/clonagem ou confirmação física.
+
+`--continuous-experimental` habilita VAD de energia + o único STT residente,
+sem Enter por chamada. É uma alternativa experimental com gaps e consumo a
+medir, não detector acústico homologado de Jarvis isolado. Ctrl+C desliga o
+microfone e libera recursos. Durante espera passiva, o holograma fica IDLE;
+amp real apenas durante reprodução PCM. Não mudou a cena visual ou o SSE.
+
+Kokoro/Torch e assets locais estão agora presentes; o operador relata sucesso
+anterior de STT/LLM/TTS/frontend no Lief. A nova voz e a escuta experimental
+aguardam homologação específica. Sem inferência, áudio ou equipamentos reais
+na regressão: **920 Python**, **52 frontend**, **6 E2E** aprovados.
+
+[Comandos completos no Lief, comparação de vozes e testes de falsos positivos](docs/integrations/jarvis-wake-persona.md).
+[Relatório da Sprint 9.1](docs/reports/sprint-9-1-acceptance.md).
+Controle físico continua em planejamento offline. Sem push, merge ou PR automático.
+
+
+### Sprint 9.2 — LIVE como fonte inicial e transporte consolidado
+
+Os dois monitores iniciam em **LIVE**. SSE v2, heartbeat e reconexão atualizam
+as páginas sem reload; ausência do backend fica **Desconectado · reconectando**,
+sem fallback para DEMO. Simulação é uma escolha explícita e isolada.
+
+Snapshot/reconexão descartam fala/energia antigas; o holograma aprovado recebe
+somente PCM real durante reprodução, sem nova cena/asset ou amplitude sintética
+em LIVE. Dashboard distingue inventário Ollama, modelo instalado e geração
+observada, com horários e aviso de que IDLE não confirma microfone desligado.
+Conversa continua opt-in e volta a ficar oculta ao trocar sessão/conexão.
+Nenhuma autorização física foi acrescentada; catálogo e cenas são os existentes.
+
+Regressão S9.2: **940 Python**, **61 Vitest**, **8 Playwright**, TypeScript,
+build, Ruff e whitespace aprovados. E2E inclui transporte real loopback com
+produtor falso, em portas isoladas 15174/18765. Portas normais 5174/8765 intactas.
+Homologação acústica/WebGL/HA real permanece uma etapa supervisionada separada.
+
+[Comandos completos dos três terminais e roteiro no Lief](docs/integrations/voice-frontend-integration.md).
+[Relatório S9.2](docs/reports/sprint-9-2-acceptance.md).

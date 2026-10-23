@@ -42,7 +42,14 @@ class VoiceBackendTests(OfflineVoiceTest):
         return self.assets(["model.bin", "config.json", "tokenizer.json"])
 
     def tts_assets(self):
-        return self.assets(["config.json", "kokoro-v1_0.pth", "voices/pm_santa.pt"])
+        return self.assets(
+            [
+                "config.json",
+                "kokoro-v1_0.pth",
+                "voices/pm_santa.pt",
+                "voices/pm_alex.pt",
+            ]
+        )
 
     def wake_assets(self):
         return self.assets(
@@ -140,6 +147,20 @@ class VoiceBackendTests(OfflineVoiceTest):
         )
         self.assertEqual(runner.run.call_args.kwargs["timeout"], 7)
 
+    def test_input_levels_worker_reuses_isolated_microphone_and_always_closes(self):
+        mic = Mock()
+        mic.measure_levels.return_value = {"rms_p95": 600}
+        options = {"device": 0, "threshold": 900, "seconds": 3}
+        with patch("jarvis_room.voice_audio.SoundDeviceMicrophone", return_value=mic):
+            self.assertEqual(execute("input_levels", options), {"rms_p95": 600})
+            mic.capture.assert_not_called()
+            mic.close.assert_called_once()
+            mic.reset_mock()
+            mic.measure_levels.side_effect = VoiceError("audio_overflow")
+            with self.assertRaisesRegex(VoiceError, "audio_overflow"):
+                execute("input_levels", options)
+            mic.close.assert_called_once()
+
     def test_tts_has_explicit_brazilian_voice(self):
         runner = self.runner(None)
         speaker = LocalSpeaker(
@@ -149,7 +170,7 @@ class VoiceBackendTests(OfflineVoiceTest):
         options = runner.run.call_args.args[1]
         self.assertEqual(
             (options["voice"], options["device"], options["speed"], options["volume"]),
-            ("pm_santa", 4, 1.2, 0.5),
+            ("pm_alex", 4, 1.2, 0.5),
         )
 
     def test_tts_does_not_accept_english_default_or_invalid_limits(self):

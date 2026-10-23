@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
+from pathlib import Path
 from threading import Event
 from typing import Callable
 
@@ -23,29 +25,39 @@ from .voice_contract import (
     public_error,
 )
 from .voice_llm import DEFAULT_VOICE_MODEL
+from .voice_persona import DEFAULT_SPEED, DEFAULT_VOICE, DEFAULT_VOLUME
 from .voice_resident import ResidentTranscriber
 from .voice_router import VoiceRouter
 from .voice_session import VoiceSession
 from .voice_stt import COMPUTE_TYPES, STTSettings
-from .voice_tts import ResidentSpeaker
+from .voice_tts import ResidentSpeaker, tts_prerequisites
 
 
 def run_voice(
     session: VoiceSession,
     *,
     manual: bool = True,
+    continuous: bool = False,
     read: Callable[[str], str] = input,
     output: Callable[[str], None] = print,
 ) -> int:
-    """Enter abre janela limitada; EOF/Ctrl+C revogam tudo e fecham recursos."""
+    """Vocativo sempre obrigatório; Ctrl+C fecha também a escuta experimental."""
     try:
         with session:
             output(
                 "J.A.R.V.I.S.: Voz local. Controle físico desabilitado. "
-                "Wake word não autentica o operador. Ctrl+C encerra."
+                "Cada solicitação deve começar com Jarvis. "
+                "Wake word não autentica o operador. "
+                "Ctrl+C desliga o microfone e encerra."
             )
+            if continuous:
+                output(
+                    "Escuta contínua EXPERIMENTAL: VAD de energia + STT local. "
+                    "Não é detector acústico de Jarvis; pode consumir CPU/GPU "
+                    "e perder falas entre capturas."
+                )
             while not session.cancel.is_set():
-                if manual:
+                if manual and not continuous:
                     command = read("Enter: falar; sair: encerrar > ").strip().casefold()
                     if command == "sair":
                         break
@@ -54,7 +66,7 @@ def run_voice(
                             "Use Enter para ativar o microfone ou sair para encerrar."
                         )
                         continue
-                else:
+                elif not continuous:
                     try:
                         if not session.await_wake():
                             continue
@@ -67,8 +79,17 @@ def run_voice(
                         )
                         manual = True
                         continue
-                if not session.activate():
+                if not session.activate(passive=continuous):
                     break
+                if continuous:
+                    if session.last_error:
+                        output(
+                            "Escuta experimental interrompida após falha. "
+                            "Execute --diagnose."
+                        )
+                        return 1
+                    if session.wait(session.config.passive_pause_seconds):
+                        raise VoiceCancelled("cancelled")
     except (EOFError, KeyboardInterrupt, VoiceCancelled):
         session.close()
     except Exception:
@@ -86,6 +107,12 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--diagnose", action="store_true", help="Só enumerar áudio/dependências"
     )
+    result.add_argument(
+        "--measure-input-levels",
+        action="store_true",
+        help="Opt-in: abrir microfone por até 10 s e mostrar só níveis RMS, sem STT",
+    )
+    result.add_argument("--level-seconds", type=float)
     result.add_argument(
         "--stt-model-dir",
         help="Diretório Faster-Whisper local, inclusive Large-v3 Turbo",
@@ -126,10 +153,10 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--tts-model-dir", help="Kokoro local; omitido mantém saída textual"
     )
-    result.add_argument("--voice", choices=PT_VOICES, default="pm_santa")
+    result.add_argument("--voice", choices=PT_VOICES, default=DEFAULT_VOICE)
     result.add_argument("--tts-backend", choices=("none", "kokoro"), default="kokoro")
-    result.add_argument("--speed", type=float, default=1)
-    result.add_argument("--volume", type=float, default=0.7)
+    result.add_argument("--speed", type=float, default=DEFAULT_SPEED)
+    result.add_argument("--volume", type=float, default=DEFAULT_VOLUME)
     result.add_argument("--input-device", type=int)
     result.add_argument("--output-device", type=int)
     result.add_argument("--silence-threshold", type=int, default=500)
@@ -141,6 +168,12 @@ def parser() -> argparse.ArgumentParser:
         "--wake-license-file", help="Registro local da origem/licenças dos ONNX"
     )
     result.add_argument("--wake-threshold", type=float, default=0.6)
+    result.add_argument(
+        "--continuous-experimental",
+        action="store_true",
+        help="Opt-in: VAD + STT residente; exige Jarvis em cada fala; Ctrl+C encerra",
+    )
+    result.add_argument("--passive-pause-seconds", type=float, default=0.25)
     result.add_argument("--active-seconds", type=float, default=300)
     result.add_argument("--inactivity-seconds", type=float, default=30)
     result.add_argument("--capture-seconds", type=float, default=15)
@@ -157,6 +190,17 @@ def parser() -> argparse.ArgumentParser:
     )
     result.add_argument("--llm-max-tokens", type=int, default=192)
     result.add_argument("--llm-context-tokens", type=int, default=4096)
+    result.add_argument(
+        "--presentation",
+        action="store_true",
+        help="Publicar observações no socket Unix privado da Sprint 9",
+    )
+    result.add_argument("--presentation-socket", type=Path)
+    result.add_argument(
+        "--share-conversation",
+        action="store_true",
+        help="Opt-in: compartilhar perguntas/respostas informativas com o dashboard",
+    )
     return result
 
 
@@ -201,7 +245,63 @@ def run_text_chat(
 def main() -> None:
     cli = parser()
     args = cli.parse_args()
+    if args.continuous_experimental and (args.wake_model_dir or args.text_chat):
+        cli.error(
+            "--continuous-experimental é exclusivo da captura VAD+STT; "
+            "não combine com --wake-model-dir ou --text-chat."
+        )
+    if (args.presentation_socket or args.share_conversation) and not args.presentation:
+        cli.error("--presentation-socket e --share-conversation exigem --presentation.")
     runner = WorkerRunner()
+    if args.level_seconds is not None and not args.measure_input_levels:
+        cli.error("--level-seconds exige --measure-input-levels.")
+    if args.measure_input_levels:
+        if any(
+            (
+                args.diagnose,
+                args.diagnose_stt,
+                args.diagnose_ollama,
+                args.diagnose_gpu,
+                args.stt_check,
+                args.continuous_experimental,
+                args.text_chat,
+                args.wake_model_dir,
+                args.presentation,
+                args.llm,
+            )
+        ):
+            cli.error(
+                "Execute --measure-input-levels separadamente da sessão e diagnósticos."
+            )
+        seconds = args.level_seconds if args.level_seconds is not None else 5.0
+        if not math.isfinite(seconds) or not 1 <= seconds <= 10:
+            cli.error("--level-seconds deve estar entre 1 e 10 segundos.")
+        if not 1 <= args.silence_threshold <= 32767:
+            cli.error("--silence-threshold deve estar entre 1 e 32767.")
+        try:
+            report = runner.run(
+                "input_levels",
+                {
+                    "device": args.input_device,
+                    "threshold": args.silence_threshold,
+                    "seconds": seconds,
+                },
+                timeout=seconds + 5,
+                cancel=Event(),
+                on_ready=lambda: print(
+                    f"Microfone aberto: medição RMS por até {seconds:g} s; "
+                    "sem transcrição ou armazenamento. Ctrl+C encerra.",
+                    file=sys.stderr,
+                    flush=True,
+                ),
+            )
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+        except (KeyboardInterrupt, VoiceCancelled):
+            raise SystemExit(130) from None
+        except (VoiceError, ValueError, OSError) as exc:
+            print(json.dumps({"error": public_error(exc, "input_levels_unavailable")}))
+            raise SystemExit(1) from None
+        return
     if args.stt_check and any(
         (args.diagnose, args.diagnose_stt, args.diagnose_ollama, args.diagnose_gpu)
     ):
@@ -322,6 +422,7 @@ def main() -> None:
             max_turns=args.max_turns,
             inactivity_seconds=args.inactivity_seconds,
             retain_context=True,
+            passive_pause_seconds=args.passive_pause_seconds,
         )
         if not 1 <= args.silence_threshold <= 32767:
             raise ValueError("invalid_threshold")
@@ -369,9 +470,22 @@ def main() -> None:
         raise SystemExit(
             run_text_chat(VoiceRouter(chat), timeout=args.operation_seconds)
         )
+    publisher = None
+    if args.presentation:
+        from .presentation_ipc import PresentationPublisher, default_socket
+
+        publisher = PresentationPublisher(
+            args.presentation_socket or default_socket(),
+            share_conversation=args.share_conversation,
+            model=chat.model if chat is not None else None,
+        )
+        publisher.service("stt", "unknown", "Modelo ainda não carregado")
+        publisher.service("tts", "unavailable", "Reprodução ainda não validada")
     speaker = wake = None
     if args.tts_model_dir and args.tts_backend == "kokoro":
         try:
+            if not tts_prerequisites(args.tts_model_dir, args.voice)["ready"]:
+                raise VoiceError("tts_backend_unavailable")
             speaker = ResidentSpeaker(
                 runner,
                 args.tts_model_dir,
@@ -380,6 +494,7 @@ def main() -> None:
                 volume=args.volume,
                 device=args.output_device,
                 startup_seconds=args.startup_seconds,
+                on_playback=publisher.playback if publisher else None,
             )
         except (ValueError, VoiceError):
             print("J.A.R.V.I.S.: TTS local indisponível. Saída textual habilitada.")
@@ -403,13 +518,30 @@ def main() -> None:
 
     def state_changed(state: VoiceState) -> None:
         print(f"[{state.value}]", flush=True)
+        if publisher is not None:
+            publisher.state(state)
+
+    def metrics_changed(metrics):
+        if args.metrics:
+            print(json.dumps({"metrics": metrics}, ensure_ascii=False))
+        if publisher is not None:
+            publisher.metrics(metrics)
+
+    def microphone_ready():
+        if args.continuous_experimental:
+            if publisher is not None:
+                publisher.service(
+                    "voice", "connected", "Microfone aberto; espera por Jarvis"
+                )
+        else:
+            print("Microfone pronto. Comece com Jarvis.", flush=True)
 
     session = VoiceSession(
         ProcessMicrophone(
             runner,
             device=args.input_device,
             threshold=args.silence_threshold,
-            on_ready=lambda: print("Microfone pronto. Pode falar.", flush=True),
+            on_ready=microphone_ready,
         ),
         transcriber,
         VoiceRouter(chat),
@@ -417,13 +549,20 @@ def main() -> None:
         wake=wake,
         config=config,
         on_state=state_changed,
-        on_metrics=(
-            lambda metrics: print(json.dumps({"metrics": metrics}, ensure_ascii=False))
-        )
-        if args.metrics
+        on_metrics=metrics_changed,
+        on_reply=publisher.conversation
+        if publisher and args.share_conversation
         else None,
     )
-    raise SystemExit(run_voice(session, manual=wake is None))
+    try:
+        raise SystemExit(
+            run_voice(
+                session, manual=wake is None, continuous=args.continuous_experimental
+            )
+        )
+    finally:
+        if publisher is not None:
+            publisher.close()
 
 
 if __name__ == "__main__":

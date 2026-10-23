@@ -60,10 +60,16 @@ PUBLIC_ERRORS = frozenset(
         "wake_activation_rate_limit",
         "wake_license_unavailable",
         "audio_overflow",
+        "audio_no_frames",
         "capture_limit",
         "operation_timeout",
         "local_backend_unavailable",
         "playback_timeout",
+        "playback_failed",
+        "playback_backend_unavailable",
+        "playback_not_ready",
+        "playback_busy",
+        "playback_closed",
     }
 )
 
@@ -92,6 +98,7 @@ class VoiceConfig:
     max_turns: int = 8
     inactivity_seconds: float | None = None
     retain_context: bool = False
+    passive_pause_seconds: float = 0.25
 
     def __post_init__(self) -> None:
         for value, low, high in (
@@ -100,6 +107,7 @@ class VoiceConfig:
             (self.operation_seconds, 1, 120),
             (self.wake_seconds, 1, 60),
             (self.cooldown_seconds, 0.3, 5),
+            (self.passive_pause_seconds, 0.2, 5),
         ):
             if (
                 isinstance(value, bool)

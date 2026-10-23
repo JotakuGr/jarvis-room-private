@@ -276,7 +276,7 @@ class NaturalPortugueseCommandTests(OfflineVoiceTest):
         chat, results = Mock(), []
         session = self.session(
             captures=[wav(), wav(), b""],
-            texts=["Jarvis, liga os monitores", "Desliga os LEDs."],
+            texts=["Jarvis, liga os monitores", "Jarvis, desliga os LEDs."],
             chat=chat,
         )
 

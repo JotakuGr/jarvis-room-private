@@ -3,6 +3,10 @@
 Status: implementada localmente; homologação visual pendente.
 Data: 20/10/2026.
 
+Registro da decisão da Sprint 8. O receptor futuro foi conectado na Sprint 9,
+preservando a cena e as fronteiras operacionais; veja a
+[integração de voz e frontend](../integrations/voice-frontend-integration.md).
+
 ## Decisão
 
 Manter React/TypeScript/Vite em `projects/jarvis-room/frontend`, separado do frontend

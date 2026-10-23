@@ -290,7 +290,10 @@ class ContinuousSessionTests(OfflineVoiceTest):
             chat=chat,
             config=VoiceConfig(retain_context=True),
             captures=[wav(), b"", wav(), b""],
-            texts=["Como isso funciona?", "Pode explicar isso de outra forma?"],
+            texts=[
+                "Jarvis, Como isso funciona?",
+                "Jarvis, Pode explicar isso de outra forma?",
+            ],
         )
         session.activate()
         self.assertEqual(len(session.router.history), 1)
@@ -303,7 +306,7 @@ class ContinuousSessionTests(OfflineVoiceTest):
         session = self.session(
             config=VoiceConfig(inactivity_seconds=10, max_turns=3),
             captures=[b"", wav(), b""],
-            texts=["Liga os LEDs."],
+            texts=["Jarvis, Liga os LEDs."],
         )
         session.activate()
         self.assertEqual(len(self.stt.calls), 1)
@@ -315,7 +318,10 @@ class ContinuousSessionTests(OfflineVoiceTest):
             chat=chat,
             config=VoiceConfig(retain_context=True, inactivity_seconds=10, max_turns=1),
             captures=[wav(), wav()],
-            texts=["Como funciona a sala?", "Pode explicar isso de outra forma?"],
+            texts=[
+                "Jarvis, Como funciona a sala?",
+                "Jarvis, Pode explicar isso de outra forma?",
+            ],
         )
         session.activate()
         self.clock.wait(11)
@@ -366,7 +372,12 @@ class ContinuousSessionTests(OfflineVoiceTest):
 class ResidentTTSTests(OfflineVoiceTest):
     def assets(self):
         root = Path(self.enterContext(tempfile.TemporaryDirectory()))
-        for name in ("config.json", "kokoro-v1_0.pth", "voices/pm_santa.pt"):
+        for name in (
+            "config.json",
+            "kokoro-v1_0.pth",
+            "voices/pm_santa.pt",
+            "voices/pm_alex.pt",
+        ):
             path = root / name
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"fake")

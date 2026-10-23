@@ -6,11 +6,33 @@ import base64
 import io
 import time
 import wave
+from importlib.metadata import PackageNotFoundError, version
+from shutil import which
 from threading import Event
 
 from .voice_backends import PT_VOICES, LocalSpeaker, local_file
 from .voice_contract import VoiceError
+from .voice_persona import DEFAULT_VOICE, prepare_speech
 from .voice_resident import ResidentWorker
+
+
+def tts_prerequisites(directory, voice=DEFAULT_VOICE) -> dict:
+    missing = []
+    for package in ("kokoro", "torch", "sounddevice"):
+        try:
+            version(package)
+        except PackageNotFoundError:
+            missing.append(package)
+    if which("espeak-ng") is None:
+        missing.append("espeak-ng")
+    try:
+        if voice not in PT_VOICES:
+            raise VoiceError("tts_invalid_configuration")
+        for name in ("config.json", "kokoro-v1_0.pth", f"voices/{voice}.pt"):
+            local_file(directory, name)
+    except (VoiceError, TypeError, OSError):
+        missing.append("local_assets")
+    return {"ready": not missing, "missing": missing, "voice": voice}
 
 
 def validate_tts_wav(audio: bytes) -> None:
@@ -113,7 +135,13 @@ class KokoroEngine:
 
 class ResidentSpeaker(LocalSpeaker):
     def __init__(
-        self, *args, startup_seconds: float = 120, worker=None, **kwargs
+        self,
+        *args,
+        startup_seconds: float = 120,
+        worker=None,
+        on_playback=None,
+        playback_factory=None,
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         from .voice_stt import validate_timeout
@@ -124,35 +152,62 @@ class ResidentSpeaker(LocalSpeaker):
             worker if worker is not None else ResidentWorker("tts", self.options)
         )
         self.last_metrics: dict = {}
+        self.on_playback = on_playback
+        self.playback_factory = playback_factory or (
+            lambda: ResidentWorker("playback", {})
+        )
+
+    def _notify(self, kind, payload):
+        if self.on_playback is not None:
+            self.on_playback({"type": kind, "payload": payload})
 
     def speak(self, text: str, *, timeout: float, cancel: Event) -> None:
         deadline = time.monotonic() + timeout
-        self.worker.start(timeout=min(timeout, self.startup_seconds), cancel=cancel)
-        remaining = deadline - time.monotonic()
-        result = self.worker.request(
-            "synthesize", {"text": text[:380]}, timeout=remaining, cancel=cancel
-        )
         try:
+            self._notify("playback_status", {"state": "synthesizing"})
+            self.worker.start(timeout=min(timeout, self.startup_seconds), cancel=cancel)
+            remaining = deadline - time.monotonic()
+            result = self.worker.request(
+                "synthesize",
+                {"text": prepare_speech(text)[:380]},
+                timeout=remaining,
+                cancel=cancel,
+            )
             audio = base64.b64decode(result["audio"], validate=True)
             validate_tts_wav(audio)
             self.last_metrics = result["metrics"]
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 raise VoiceError("tts_timeout")
-            self.runner.run(
-                "play",
-                {
-                    "audio": result["audio"],
-                    "device": self.options["device"],
-                    "volume": self.options["volume"],
-                    "seconds": remaining,
-                },
-                timeout=remaining,
-                cancel=cancel,
-            )
+            options = {
+                "audio": result["audio"],
+                "device": self.options["device"],
+                "volume": self.options["volume"],
+                "seconds": remaining,
+            }
+            if self.on_playback is None:
+                self.runner.run("play", options, timeout=remaining, cancel=cancel)
+            else:
+                playback = self.playback_factory()
+                try:
+                    playback.start(timeout=remaining, cancel=cancel)
+                    remaining = deadline - time.monotonic()
+                    options["seconds"] = remaining
+                    playback.request(
+                        "play",
+                        {"options": options},
+                        timeout=remaining,
+                        cancel=cancel,
+                        on_event=self.on_playback,
+                    )
+                finally:
+                    playback.close()
         except BaseException:
+            self._notify("playback_status", {"state": "error"})
             self.worker.close()
             raise
+        finally:
+            self._notify("voice_amplitude", {"amplitude": 0})
 
     def close(self) -> None:
         self.worker.close()

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import os
 import select
 import signal
@@ -104,7 +105,7 @@ class FramedPipe:
 
 class ResidentWorker:
     def __init__(self, kind: str, options: dict[str, Any]) -> None:
-        if kind not in {"stt", "tts"}:
+        if kind not in {"stt", "tts", "playback"}:
             raise ValueError("invalid_resident_kind")
         self.kind, self.options = kind, options.copy()
         self.process = self.pipe = self._runtime = None
@@ -114,7 +115,13 @@ class ResidentWorker:
         self.closed = False
 
     def _exchange(
-        self, operation: str, data: dict, *, timeout: float, cancel: threading.Event
+        self,
+        operation: str,
+        data: dict,
+        *,
+        timeout: float,
+        cancel: threading.Event,
+        on_event=None,
     ) -> Any:
         validate_timeout(timeout)
         check_cancel(cancel)
@@ -125,7 +132,39 @@ class ResidentWorker:
             deadline=deadline,
             cancel=cancel,
         )
-        reply = self.pipe.receive(deadline=deadline, cancel=cancel)
+        while True:
+            reply = self.pipe.receive(deadline=deadline, cancel=cancel)
+            if type(reply.get("id")) is not int or reply["id"] != self._sequence:
+                raise VoiceError("ipc_response_mismatch")
+            if "event" not in reply:
+                break
+            if self.kind != "playback" or set(reply) != {"id", "event", "emittedAt"}:
+                raise VoiceError("ipc_invalid_message")
+            emitted = reply["emittedAt"]
+            if type(emitted) not in (int, float) or not math.isfinite(emitted):
+                raise VoiceError("ipc_invalid_message")
+            age = time.monotonic() - emitted
+            if age < -0.1:
+                raise VoiceError("ipc_invalid_message")
+            event = reply["event"]
+            from .presentation_contract import validate_payload
+
+            if (
+                type(event) is not dict
+                or set(event) != {"type", "payload"}
+                or event["type"] not in ("voice_amplitude", "playback_status")
+            ):
+                raise VoiceError("ipc_invalid_message")
+            validate_payload(event["type"], event["payload"])
+            if age > 0.5 and (
+                event["type"] == "voice_amplitude"
+                and event["payload"]["amplitude"] > 0
+                or event["type"] == "playback_status"
+                and event["payload"]["state"] == "playing"
+            ):
+                continue  # Progresso antigo não é animação atual. Zero/fim passam.
+            if on_event is not None:
+                on_event(event)
         check_cancel(cancel)
         if type(reply.get("id")) is not int or reply["id"] != self._sequence:
             raise VoiceError("ipc_response_mismatch")
@@ -187,14 +226,22 @@ class ResidentWorker:
             raise
 
     def request(
-        self, operation: str, data: dict, *, timeout: float, cancel: threading.Event
+        self,
+        operation: str,
+        data: dict,
+        *,
+        timeout: float,
+        cancel: threading.Event,
+        on_event=None,
     ) -> Any:
         if not self._lock.acquire(blocking=False):
             raise VoiceError(f"{self.kind}_busy")
         try:
             if self.closed or self.process is None or self.process.poll() is not None:
                 raise VoiceError(f"{self.kind}_not_ready")
-            return self._exchange(operation, data, timeout=timeout, cancel=cancel)
+            return self._exchange(
+                operation, data, timeout=timeout, cancel=cancel, on_event=on_event
+            )
         except BaseException:
             # Falha/timeout nunca reaproveita resultado atrasado nem reenvia áudio.
             self._stop()
